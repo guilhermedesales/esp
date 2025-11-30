@@ -256,7 +256,9 @@
     
     // Carregar dados históricos e estado inicial do Supabase
     carregarEstadoInicial();
-    carregarDadosHistoricos();
+    carregarDadosHistoricos().then(() => {
+      renderizarGraficoAcessos();
+    });
   });
   
   client.on("error", (err)=>{
@@ -652,7 +654,6 @@
       
       if(acessos){
         historicoAcessos = acessos.map(a => new Date(a.timestamp));
-        atualizarGraficoAcessos();
         console.log(`✅ Carregados ${acessos.length} acessos do período selecionado`);
       }
     } catch(e) {
@@ -661,10 +662,14 @@
     }
   }
 
+  // Função que recarrega do banco (chamada apenas quando filtro mudar)
   async function atualizarGraficoAcessos(){
-    // Recarregar dados do banco quando filtro mudar
     await carregarDadosHistoricos();
-    
+    renderizarGraficoAcessos();
+  }
+  
+  // Função que apenas renderiza com dados já em memória
+  function renderizarGraficoAcessos(){
     const filtro = document.getElementById("filtroTempo").value;
     let labels=[], counts=[];
     const now=new Date();
