@@ -254,7 +254,8 @@
       if(!err) console.log("Inscrito em vaga/topico");
     });
     
-    // Carregar dados históricos do Supabase
+    // Carregar dados históricos e estado inicial do Supabase
+    carregarEstadoInicial();
     carregarDadosHistoricos();
   });
   
@@ -272,12 +273,7 @@
   const btnBloq2=document.getElementById("btnBloq2");
   const btnDesbloq2=document.getElementById("btnDesbloq2");
 
-  // Inicializar vagas como livres
-  statusEl1.textContent="livre";
-  statusEl1.className="status status-livre";
-  statusEl2.textContent="livre";
-  statusEl2.className="status status-livre";
-
+  // Estados iniciais (serão carregados do banco ou via MQTT)
   let totalAcessos=0;
   let contVaga1=0, contVaga2=0;
 
@@ -496,6 +492,74 @@
       else console.log(`✅ Mudança vaga ${numeroVaga} salva`);
     } catch(e) {
       console.error('Erro Supabase:', e);
+    }
+  }
+  
+  // Carregar estado inicial das vagas do banco
+  async function carregarEstadoInicial(){
+    try {
+      // Buscar última mudança de cada vaga
+      const { data: vaga1, error: error1 } = await supabase
+        .from('historico_vagas')
+        .select('estado_novo')
+        .eq('numero_vaga', 1)
+        .order('timestamp', { ascending: false })
+        .limit(1);
+      
+      const { data: vaga2, error: error2 } = await supabase
+        .from('historico_vagas')
+        .select('estado_novo')
+        .eq('numero_vaga', 2)
+        .order('timestamp', { ascending: false })
+        .limit(1);
+      
+      // Aplicar estado da vaga 1 (ou deixar livre se não houver dado)
+      if(!error1 && vaga1 && vaga1.length > 0){
+        const estado = vaga1[0].estado_novo;
+        valor1 = estado;
+        bloqueado1 = (estado === "bloqueada");
+        statusEl1.textContent = estado;
+        statusEl1.className = `status status-${estado}`;
+        console.log(`✅ Vaga 1 carregada do banco: ${estado}`);
+      } else {
+        // Fallback: deixar livre
+        valor1 = "livre";
+        statusEl1.textContent = "livre";
+        statusEl1.className = "status status-livre";
+        console.log('💡 Vaga 1 iniciada como livre (sem dados no banco)');
+      }
+      
+      // Aplicar estado da vaga 2 (ou deixar livre se não houver dado)
+      if(!error2 && vaga2 && vaga2.length > 0){
+        const estado = vaga2[0].estado_novo;
+        valor2 = estado;
+        bloqueado2 = (estado === "bloqueada");
+        statusEl2.textContent = estado;
+        statusEl2.className = `status status-${estado}`;
+        console.log(`✅ Vaga 2 carregada do banco: ${estado}`);
+      } else {
+        // Fallback: deixar livre
+        valor2 = "livre";
+        statusEl2.textContent = "livre";
+        statusEl2.className = "status status-livre";
+        console.log('💡 Vaga 2 iniciada como livre (sem dados no banco)');
+      }
+      
+      atualizarBotoes();
+      atualizarResumo();
+      
+    } catch(e) {
+      console.warn('⚠️ Erro ao carregar estado inicial:', e.message);
+      // Fallback: deixar tudo livre
+      valor1 = "livre";
+      valor2 = "livre";
+      statusEl1.textContent = "livre";
+      statusEl1.className = "status status-livre";
+      statusEl2.textContent = "livre";
+      statusEl2.className = "status status-livre";
+      atualizarBotoes();
+      atualizarResumo();
+      console.log('💡 Sistema iniciado com vagas livres (fallback)');
     }
   }
   

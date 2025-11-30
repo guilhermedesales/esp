@@ -331,6 +331,9 @@
       statusBadge.textContent = 'Online';
       statusBadge.classList.remove('offline');
       statusBadge.classList.add('online');
+      
+      // Carregar estado inicial das vagas
+      carregarEstadoInicial();
     });
 
     client.on('error', () => {
@@ -480,6 +483,39 @@
       }
     });
 
+    // Carregar estado inicial das vagas do banco
+    async function carregarEstadoInicial() {
+      try {
+        // Buscar última mudança de cada vaga
+        for(let i = 1; i <= NUM_VAGAS; i++) {
+          const { data, error } = await supabase
+            .from('historico_vagas')
+            .select('estado_novo')
+            .eq('numero_vaga', i)
+            .order('timestamp', { ascending: false })
+            .limit(1);
+          
+          if(!error && data && data.length > 0) {
+            const estado = data[0].estado_novo;
+            const vaga = vagas[i];
+            vaga.estado = estado;
+            vaga.livre = (estado === 'livre') ? 1 : 0;
+            atualizarVaga(vaga.div, i, estado);
+            console.log(`✅ Vaga ${i} carregada do banco: ${estado}`);
+          } else {
+            console.log(`💡 Vaga ${i} mantida como livre (sem dados no banco)`);
+          }
+        }
+        
+        atualizarTotal();
+        atualizarTaxaOcupacao();
+        
+      } catch(e) {
+        console.warn('⚠️ Erro ao carregar estado inicial:', e.message);
+        console.log('💡 Sistema funcionará com estados padrão até receber MQTT');
+      }
+    }
+    
     // Atualizar hora a cada segundo
     setInterval(atualizarHora, 1000);
   </script>
