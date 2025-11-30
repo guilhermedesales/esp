@@ -281,6 +281,9 @@
 
   // Históricos para gráficos
   let historicoAcessos = [];
+  
+  // Controle para evitar salvar o mesmo acesso múltiplas vezes (múltiplas abas)
+  let ultimoAcessoTimestamp = 0;
 
   function atualizarBotoes(){
     btnBloq1.className=bloqueado1?"btn disabled":"btn bloquear";
@@ -461,6 +464,15 @@
 
   async function adicionarAcesso(){
     const now = new Date();
+    const nowTimestamp = now.getTime();
+    
+    // Verifica se já foi salvo há menos de 2 segundos (múltiplas abas)
+    if(nowTimestamp - ultimoAcessoTimestamp < 2000) {
+      console.log('⏭️ Acesso ignorado (já salvo por outra aba há menos de 2s)');
+      return;
+    }
+    
+    ultimoAcessoTimestamp = nowTimestamp;
     historicoAcessos.push(now);
     // Usa renderizarGraficoAcessos() para apenas atualizar visual
     // NÃO usa atualizarGraficoAcessos() que recarrega tudo do banco
@@ -475,10 +487,17 @@
           total: totalAcessos
         });
       
-      if(error) console.error('Erro ao salvar acesso:', error);
-      else console.log('✅ Acesso salvo no Supabase');
+      if(error) {
+        console.error('Erro ao salvar acesso:', error);
+        // Se falhou, reseta timestamp para permitir retry
+        ultimoAcessoTimestamp = 0;
+      } else {
+        console.log('✅ Acesso salvo no Supabase');
+      }
     } catch(e) {
       console.error('Erro Supabase:', e);
+      // Se falhou, reseta timestamp para permitir retry
+      ultimoAcessoTimestamp = 0;
     }
   }
   
