@@ -189,27 +189,24 @@
     </div>
   </div>
 
-  <!-- Linha 3: Gráficos de Análise -->
-  <div class="grid-2">
-    <!-- Comparativo Vagas -->
-    <div class="card">
-      <h2>Comparativo de Uso das Vagas</h2>
-      <canvas id="graficoVagas"></canvas>
-    </div>
+  <!-- Linha 3: Gráfico Comparativo Vagas -->
+  <div class="card">
+    <h2>Comparativo de Uso das Vagas</h2>
+    <canvas id="graficoVagas"></canvas>
+  </div>
 
-    <!-- Filtro Acessos -->
-    <div class="card">
-      <h2>Acessos ao Longo do Tempo</h2>
-      <div class="filtro">
-        <label for="filtroTempo">Filtrar por:</label>
-        <select id="filtroTempo" onchange="atualizarGraficoAcessos()">
-          <option value="dia" selected>Dia</option>
-          <option value="semana">Semana</option>
-          <option value="mes">Mês</option>
-        </select>
-      </div>
-      <canvas id="graficoAcessos"></canvas>
+  <!-- Linha 4: Gráfico de Acessos (largura completa) -->
+  <div class="card">
+    <h2>Acessos ao Longo do Tempo</h2>
+    <div class="filtro">
+      <label for="filtroTempo">Filtrar por:</label>
+      <select id="filtroTempo" onchange="atualizarGraficoAcessos()">
+        <option value="dia" selected>Dia</option>
+        <option value="semana">Semana</option>
+        <option value="mes">Mês</option>
+      </select>
     </div>
+    <canvas id="graficoAcessos"></canvas>
   </div>
 
   <!-- Edição LCD -->
