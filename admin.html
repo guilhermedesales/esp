@@ -545,54 +545,113 @@
         console.log('💡 Vaga 2 iniciada como livre (sem dados no banco)');
       }
       
+      // Carregar total de acessos do dia
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+      const { data: acessosHoje, error: errorAcessos } = await supabase
+        .from('acessos')
+        .select('total')
+        .gte('timestamp', hoje.toISOString())
+        .order('timestamp', { ascending: false })
+        .limit(1);
+      
+      if(!errorAcessos && acessosHoje && acessosHoje.length > 0){
+        totalAcessos = acessosHoje[0].total;
+        document.getElementById('acessos').textContent = totalAcessos;
+        console.log(`✅ Total de acessos do dia carregado: ${totalAcessos}`);
+      } else {
+        totalAcessos = 0;
+        document.getElementById('acessos').textContent = 0;
+        console.log('💡 Total de acessos iniciado em 0 (sem dados do dia)');
+      }
+      
+      // Carregar contadores de uso das vagas (quantas vezes ficaram ocupadas hoje)
+      const { data: mudancasHoje, error: errorMudancas } = await supabase
+        .from('historico_vagas')
+        .select('numero_vaga, estado_novo')
+        .gte('timestamp', hoje.toISOString())
+        .eq('estado_novo', 'ocupada');
+      
+      if(!errorMudancas && mudancasHoje){
+        contVaga1 = mudancasHoje.filter(m => m.numero_vaga === 1).length;
+        contVaga2 = mudancasHoje.filter(m => m.numero_vaga === 2).length;
+        atualizarGraficoVagas();
+        console.log(`✅ Contadores carregados - Vaga1: ${contVaga1}, Vaga2: ${contVaga2}`);
+      } else {
+        contVaga1 = 0;
+        contVaga2 = 0;
+        atualizarGraficoVagas();
+        console.log('💡 Contadores iniciados em 0 (sem dados do dia)');
+      }
+      
       atualizarBotoes();
       atualizarResumo();
       
     } catch(e) {
       console.warn('⚠️ Erro ao carregar estado inicial:', e.message);
-      // Fallback: deixar tudo livre
+      // Fallback: deixar tudo livre e contadores zerados
       valor1 = "livre";
       valor2 = "livre";
       statusEl1.textContent = "livre";
       statusEl1.className = "status status-livre";
       statusEl2.textContent = "livre";
       statusEl2.className = "status status-livre";
+      totalAcessos = 0;
+      document.getElementById('acessos').textContent = 0;
+      contVaga1 = 0;
+      contVaga2 = 0;
       atualizarBotoes();
       atualizarResumo();
-      console.log('💡 Sistema iniciado com vagas livres (fallback)');
+      atualizarGraficoVagas();
+      console.log('💡 Sistema iniciado com valores padrão (fallback)');
     }
   }
   
   // Carregar dados históricos do banco
   async function carregarDadosHistoricos(){
     try {
-      // Carregar acessos dos últimos 30 dias
-      const dataLimite = new Date();
-      dataLimite.setDate(dataLimite.getDate() - 30);
+      // Determinar período baseado no filtro atual
+      const filtro = document.getElementById("filtroTempo").value;
+      const agora = new Date();
+      let dataInicio = new Date();
+      
+      if(filtro === "dia"){
+        dataInicio.setHours(0,0,0,0);
+      } else if(filtro === "semana"){
+        dataInicio.setDate(agora.getDate() - agora.getDay());
+        dataInicio.setHours(0,0,0,0);
+      } else if(filtro === "mes"){
+        dataInicio.setDate(1);
+        dataInicio.setHours(0,0,0,0);
+      }
       
       const { data: acessos, error } = await supabase
         .from('acessos')
         .select('timestamp')
-        .gte('timestamp', dataLimite.toISOString())
+        .gte('timestamp', dataInicio.toISOString())
         .order('timestamp', { ascending: true });
       
       if(error) {
         console.warn('⚠️ Supabase não configurado corretamente:', error.message);
-        console.log('💡 Sistema funcionará sem persistência de dados');
+        console.log('💡 Gráficos funcionarão apenas com novos dados via MQTT');
         return;
       }
       
       if(acessos){
         historicoAcessos = acessos.map(a => new Date(a.timestamp));
         atualizarGraficoAcessos();
-        console.log(`✅ Carregados ${acessos.length} acessos do Supabase`);
+        console.log(`✅ Carregados ${acessos.length} acessos do período selecionado`);
       }
     } catch(e) {
       console.warn('⚠️ Erro ao carregar histórico:', e.message);
+      console.log('💡 Gráficos funcionarão apenas com novos dados via MQTT');
     }
   }
 
-  function atualizarGraficoAcessos(){
+  async function atualizarGraficoAcessos(){
+    // Recarregar dados do banco quando filtro mudar
+    await carregarDadosHistoricos();
+    
     const filtro = document.getElementById("filtroTempo").value;
     let labels=[], counts=[];
     const now=new Date();
