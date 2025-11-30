@@ -148,7 +148,7 @@
   <!-- Linha 1: Cards de Resumo -->
   <div class="grid-3">
     <div class="card card-small">
-      <h2>Total de Acessos</h2>
+      <h2>Total de Acessos (Hoje)</h2>
       <div class="stat-number"><span id="acessos">0</span></div>
       <p style="color:#666; margin:0;">entradas registradas</p>
     </div>
@@ -163,6 +163,27 @@
       <h2>Vagas Ocupadas</h2>
       <div class="stat-number" style="color:#d32f2f;"><span id="ocupadas">0</span></div>
       <p style="color:#666; margin:0;">de 2 vagas</p>
+    </div>
+  </div>
+
+  <!-- Linha 1.5: Métricas Adicionais -->
+  <div class="grid-3">
+    <div class="card card-small">
+      <h2>Taxa de Ocupação</h2>
+      <div class="stat-number" style="color:#ff9800;"><span id="taxaOcupacao">0</span>%</div>
+      <p style="color:#666; margin:0;">vagas ocupadas agora</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Tempo Médio</h2>
+      <div class="stat-number" style="color:#9c27b0; font-size:24px;"><span id="tempoMedio">--</span></div>
+      <p style="color:#666; margin:0;">permanência por vaga</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Horário de Pico</h2>
+      <div class="stat-number" style="color:#f44336; font-size:24px;"><span id="horarioPico">--</span></div>
+      <p style="color:#666; margin:0;">maior movimento</p>
     </div>
   </div>
 
@@ -210,13 +231,48 @@
     <canvas id="graficoAcessos"></canvas>
   </div>
 
+  <!-- Linha 5: Grid 2 colunas - Alertas e Estatísticas -->
+  <div class="grid-2">
+    <!-- Log de Eventos Recentes -->
+    <div class="card">
+      <h2>📋 Log de Eventos Recentes</h2>
+      <div id="logEventos" style="max-height:250px; overflow-y:auto; font-size:13px;">
+        <div style="text-align:center; color:#999; padding:20px;">Aguardando eventos...</div>
+      </div>
+    </div>
+
+    <!-- Status do Sistema -->
+    <div class="card">
+      <h2>🔧 Status do Sistema</h2>
+      <div style="padding:10px 0;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>Conexão MQTT:</strong></span>
+          <span id="statusMQTT" style="color:#999;">●</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>Banco de Dados:</strong></span>
+          <span id="statusDB" style="color:#999;">●</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>Última Atualização:</strong></span>
+          <span id="ultimaAtt" style="font-size:12px; color:#666;">--</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>ESP32 Status:</strong></span>
+          <span id="esp32Status" style="font-size:12px; font-weight:bold;">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Edição LCD -->
   <div class="card">
-    <h2>Editar Mensagem do LCD</h2>
+    <h2>📟 Editar Mensagem do LCD</h2>
     <div class="lcd-input-container">
-      <input type="text" id="lcdInput" placeholder="Digite o texto para exibir no LCD" style="padding:8px 12px; font-size:14px; flex:1;">
+      <input type="text" id="lcdInput" placeholder="Digite o texto para exibir no LCD" maxlength="32" style="padding:8px 12px; font-size:14px; flex:1;">
       <button class="btn desbloquear" onclick="enviarLCD()">Enviar para LCD</button>
     </div>
+    <p style="font-size:12px; color:#999; margin:10px 0 0 0;">💡 Dica: Máximo 32 caracteres por mensagem</p>
   </div>
 
   <script>
@@ -225,6 +281,7 @@
     if(texto.length > 0){
       client.publish("estacionamento/lcd", texto);
       document.getElementById("lcdInput").value = "";
+      adicionarLog(`📟 Mensagem LCD enviada: "${texto}"`);
     }
   }
   </script>
@@ -247,6 +304,10 @@
   
   client.on("connect", ()=>{
     console.log("MQTT Conectado");
+    mqttConectado = true;
+    atualizarStatusSistema();
+    adicionarLog("✅ Conexão MQTT estabelecida");
+    
     client.subscribe("estacionamento/acessos", (err)=>{
       if(!err) console.log("Inscrito em estacionamento/acessos");
     });
@@ -259,10 +320,17 @@
     carregarDadosHistoricos().then(() => {
       renderizarGraficoAcessos();
     });
+    
+    // Atualizar status ESP32 a cada 5 segundos
+    setInterval(atualizarStatusESP32, 5000);
+    atualizarStatusESP32();
   });
   
   client.on("error", (err)=>{
     console.error("Erro MQTT:", err);
+    mqttConectado = false;
+    atualizarStatusSistema();
+    adicionarLog("❌ Erro na conexão MQTT");
   });
 
   // Controle vagas
@@ -281,6 +349,17 @@
 
   // Históricos para gráficos
   let historicoAcessos = [];
+
+  // Estado do sistema
+  let dbConectado = false;
+  let mqttConectado = false;
+  let ultimaAtualizacaoESP = null;
+
+  // Log de eventos (últimos 50)
+  let logEventos = [];
+
+  // Dados para cálculos de métricas
+  let mudancasVagasHoje = [];
   
   // Controle para evitar salvar o mesmo acesso múltiplas vezes (múltiplas abas)
   let ultimoAcessoTimestamp = 0;
@@ -304,6 +383,8 @@
       totalAcessos++;
       console.log("✅ Novo acesso registrado! Total agora:", totalAcessos, "(ESP enviou:", msg, ")");
       document.getElementById("acessos").textContent=totalAcessos;
+      ultimaAtualizacaoESP = Date.now();
+      adicionarLog(`🚗 Novo acesso registrado (#${totalAcessos})`);
       adicionarAcesso();
     }
     
@@ -324,6 +405,7 @@
       
       let el = vaga==="vaga1" ? statusEl1 : statusEl2;
       let estadoAnterior = vaga==="vaga1" ? valor1 : valor2;
+      const numVaga = vaga==="vaga1" ? 1 : 2;
 
       console.log("   Estado anterior:", estadoAnterior);
 
@@ -346,10 +428,13 @@
         el.textContent="bloqueada";
         el.className="status status-bloqueada";
         console.log("   ⚠️ Exibindo como BLOQUEADA");
+        adicionarLog(`⚠️ Vaga ${numVaga} bloqueada`);
       } else if(estado==="ocupada"){
         el.textContent="ocupada";
         el.className="status status-ocupada";
         console.log("   🔴 Exibindo como OCUPADA");
+        ultimaAtualizacaoESP = Date.now();
+        adicionarLog(`🔴 Vaga ${numVaga} ocupada`);
         
         // Incrementa contador em tempo real quando muda de livre/bloqueada para ocupada
         if(estadoAnterior!=="ocupada" && estadoAnterior!=="bloqueada"){
@@ -367,10 +452,11 @@
         el.textContent="livre";
         el.className="status status-livre";
         console.log("   🟢 Exibindo como LIVRE");
+        ultimaAtualizacaoESP = Date.now();
+        adicionarLog(`🟢 Vaga ${numVaga} liberada`);
       }
       
       // Salvar mudança no Supabase
-      const numVaga = vaga==="vaga1" ? 1 : 2;
       salvarMudancaVaga(numVaga, estado, estadoAnterior);
 
       atualizarBotoes();
@@ -384,12 +470,14 @@
     client.publish("vaga/topico", `vaga${n}:bloqueada`);
     // Mantém compatibilidade com ESP32 antigo
     client.publish(`estacionamento/vaga${n}/bloqueio`,"true");
+    adicionarLog(`🔒 Comando de bloqueio enviado para Vaga ${n}`);
   }
   function desbloquear(n){
     // Publica estado livre direto no tópico principal
     client.publish("vaga/topico", `vaga${n}:livre`);
     // Mantém compatibilidade com ESP32 antigo
     client.publish(`estacionamento/vaga${n}/bloqueio`,"false");
+    adicionarLog(`🔓 Comando de desbloqueio enviado para Vaga ${n}`);
   }
 
   
@@ -493,6 +581,8 @@
         ultimoAcessoTimestamp = 0;
       } else {
         console.log('✅ Acesso salvo no Supabase');
+        // Recalcular horário de pico
+        calcularHorarioPico();
       }
     } catch(e) {
       console.error('Erro Supabase:', e);
@@ -524,6 +614,16 @@
         return false;
       } else {
         console.log(`✅ Mudança vaga ${numeroVaga} salva`);
+        
+        // Adicionar mudança ao array local e recalcular métricas
+        mudancasVagasHoje.push({
+          numero_vaga: numeroVaga,
+          estado_anterior: estadoAnterior,
+          estado_novo: estadoNovo,
+          timestamp: new Date().toISOString()
+        });
+        calcularMetricas();
+        
         return true;
       }
     } catch(e) {
@@ -622,8 +722,22 @@
       atualizarBotoes();
       atualizarResumo();
       
+      // Marcar DB como conectado
+      dbConectado = true;
+      atualizarStatusSistema();
+      adicionarLog("✅ Estado inicial carregado do banco de dados");
+      
+      // Carregar mudanças das vagas para cálculos de métricas
+      await carregarMudancasVagasHoje();
+      
+      // Calcular métricas
+      calcularMetricas();
+      
     } catch(e) {
       console.warn('⚠️ Erro ao carregar estado inicial:', e.message);
+      dbConectado = false;
+      atualizarStatusSistema();
+      adicionarLog("⚠️ Erro ao carregar estado inicial do banco");
       // Fallback: deixar tudo livre e contadores zerados
       valor1 = "livre";
       valor2 = "livre";
@@ -727,6 +841,238 @@
     const weekNum2= Math.ceil((((d1-onejan)/86400000)+onejan.getDay()+1)/7);
     return weekNum===weekNum2;
   }
+
+  // ===== FUNÇÕES DE LOG E STATUS =====
+  function adicionarLog(mensagem) {
+    const timestamp = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    logEventos.unshift({ timestamp, mensagem });
+    
+    // Manter apenas últimos 50 eventos
+    if(logEventos.length > 50) {
+      logEventos = logEventos.slice(0, 50);
+    }
+    
+    atualizarLogVisual();
+  }
+
+  function atualizarLogVisual() {
+    const logContainer = document.getElementById('logEventos');
+    if(!logContainer) return;
+    
+    if(logEventos.length === 0) {
+      logContainer.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Aguardando eventos...</div>';
+      return;
+    }
+    
+    logContainer.innerHTML = logEventos.map(log => `
+      <div style="padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+        <span style="flex:1;">${log.mensagem}</span>
+        <span style="color:#999; font-size:11px; white-space:nowrap; margin-left:10px;">${log.timestamp}</span>
+      </div>
+    `).join('');
+  }
+
+  function atualizarStatusSistema() {
+    const statusMQTT = document.getElementById('statusMQTT');
+    const statusDB = document.getElementById('statusDB');
+    
+    if(statusMQTT) {
+      statusMQTT.textContent = mqttConectado ? '● Conectado' : '● Desconectado';
+      statusMQTT.style.color = mqttConectado ? '#4caf50' : '#f44336';
+    }
+    
+    if(statusDB) {
+      statusDB.textContent = dbConectado ? '● Conectado' : '● Desconectado';
+      statusDB.style.color = dbConectado ? '#4caf50' : '#f44336';
+    }
+  }
+
+  function atualizarStatusESP32() {
+    const statusEl = document.getElementById('esp32Status');
+    if(!statusEl) return;
+    
+    if(!ultimaAtualizacaoESP) {
+      statusEl.textContent = 'Aguardando...';
+      statusEl.style.color = '#999';
+      return;
+    }
+    
+    const diff = Date.now() - ultimaAtualizacaoESP;
+    const segundos = Math.floor(diff / 1000);
+    
+    if(segundos < 30) {
+      statusEl.textContent = '🟢 Online';
+      statusEl.style.color = '#4caf50';
+    } else if(segundos < 120) {
+      statusEl.textContent = '🟡 Inativo';
+      statusEl.style.color = '#ff9800';
+    } else {
+      statusEl.textContent = '🔴 Offline';
+      statusEl.style.color = '#f44336';
+    }
+  }
+
+  function atualizarUltimaAtualizacao() {
+    const ultimaAttEl = document.getElementById('ultimaAtt');
+    if(!ultimaAttEl) return;
+    
+    if(!ultimaAtualizacaoESP) {
+      ultimaAttEl.textContent = 'Nunca';
+      return;
+    }
+    
+    const agora = Date.now();
+    const diff = agora - ultimaAtualizacaoESP;
+    const segundos = Math.floor(diff / 1000);
+    const minutos = Math.floor(segundos / 60);
+    
+    if(minutos < 1) {
+      ultimaAttEl.textContent = `${segundos}s atrás`;
+    } else if(minutos < 60) {
+      ultimaAttEl.textContent = `${minutos}min atrás`;
+    } else {
+      const horas = Math.floor(minutos / 60);
+      ultimaAttEl.textContent = `${horas}h atrás`;
+    }
+  }
+
+  // ===== FUNÇÕES DE CÁLCULO DE MÉTRICAS =====
+  async function carregarMudancasVagasHoje() {
+    try {
+      const hoje = new Date();
+      hoje.setHours(0,0,0,0);
+      
+      const { data, error } = await supabase
+        .from('historico_vagas')
+        .select('numero_vaga, estado_anterior, estado_novo, timestamp')
+        .gte('timestamp', hoje.toISOString())
+        .order('timestamp', { ascending: true });
+      
+      if(!error && data) {
+        mudancasVagasHoje = data;
+        console.log(`✅ Carregadas ${data.length} mudanças de vagas de hoje`);
+      }
+    } catch(e) {
+      console.warn('⚠️ Erro ao carregar mudanças das vagas:', e.message);
+    }
+  }
+
+  function calcularMetricas() {
+    calcularTaxaOcupacao();
+    calcularTempoMedio();
+    calcularHorarioPico();
+  }
+
+  function calcularTaxaOcupacao() {
+    const taxaEl = document.getElementById('taxaOcupacao');
+    if(!taxaEl) return;
+    
+    // Calcular taxa de ocupação instantânea (quantas vagas estão ocupadas agora)
+    const NUM_VAGAS = 2;
+    let vagasOcupadas = 0;
+    
+    if(valor1 === 'ocupada') vagasOcupadas++;
+    if(valor2 === 'ocupada') vagasOcupadas++;
+    
+    const taxaOcupacao = (vagasOcupadas / NUM_VAGAS) * 100;
+    
+    taxaEl.textContent = Math.round(taxaOcupacao);
+  }
+
+  function calcularTempoMedio() {
+    const tempoEl = document.getElementById('tempoMedio');
+    if(!tempoEl) return;
+    
+    // Calcular duração média de ocupação (quando vaga vai de livre->ocupada até ocupada->livre)
+    const durações = [];
+    const NUM_VAGAS = 2;
+    
+    for(let vagaNum = 1; vagaNum <= NUM_VAGAS; vagaNum++) {
+      const mudancasVaga = mudancasVagasHoje.filter(m => m.numero_vaga === vagaNum).sort((a,b) => 
+        new Date(a.timestamp) - new Date(b.timestamp)
+      );
+      
+      let inicioOcupacao = null;
+      
+      for(const mudanca of mudancasVaga) {
+        if(mudanca.estado_novo === 'ocupada' && mudanca.estado_anterior !== 'ocupada') {
+          inicioOcupacao = new Date(mudanca.timestamp);
+        } else if(mudanca.estado_novo !== 'ocupada' && mudanca.estado_anterior === 'ocupada' && inicioOcupacao) {
+          const fimOcupacao = new Date(mudanca.timestamp);
+          const duracao = fimOcupacao - inicioOcupacao;
+          durações.push(duracao);
+          inicioOcupacao = null;
+        }
+      }
+    }
+    
+    if(durações.length === 0) {
+      tempoEl.textContent = '--';
+      return;
+    }
+    
+    const mediaMs = durações.reduce((a,b) => a+b, 0) / durações.length;
+    const minutos = Math.round(mediaMs / (1000 * 60));
+    
+    if(minutos < 60) {
+      tempoEl.textContent = `${minutos}min`;
+    } else {
+      const horas = Math.floor(minutos / 60);
+      const mins = minutos % 60;
+      tempoEl.textContent = `${horas}h${mins}m`;
+    }
+  }
+
+  function calcularHorarioPico() {
+    const picoEl = document.getElementById('horarioPico');
+    if(!picoEl) return;
+    
+    if(historicoAcessos.length === 0) {
+      picoEl.textContent = '--';
+      return;
+    }
+    
+    // Contar acessos por hora
+    const hoje = new Date();
+    const acessosHoje = historicoAcessos.filter(d => sameDay(d, hoje));
+    
+    if(acessosHoje.length === 0) {
+      picoEl.textContent = '--';
+      return;
+    }
+    
+    const contagemPorHora = {};
+    for(let h = 0; h < 24; h++) {
+      contagemPorHora[h] = 0;
+    }
+    
+    acessosHoje.forEach(d => {
+      contagemPorHora[d.getHours()]++;
+    });
+    
+    // Encontrar hora com mais acessos
+    let maxHora = 0;
+    let maxAcessos = 0;
+    
+    for(let h = 0; h < 24; h++) {
+      if(contagemPorHora[h] > maxAcessos) {
+        maxAcessos = contagemPorHora[h];
+        maxHora = h;
+      }
+    }
+    
+    if(maxAcessos === 0) {
+      picoEl.textContent = '--';
+    } else {
+      picoEl.textContent = `${maxHora}:00`;
+    }
+  }
+
+  // Atualizar última atualização ESP32 a cada 10 segundos
+  setInterval(() => {
+    atualizarUltimaAtualizacao();
+    atualizarStatusESP32();
+  }, 10000);
 
 </script>
 </body>
