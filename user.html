@@ -272,9 +272,15 @@
   </div>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     // ===== CONFIGURAÇÃO =====
     const NUM_VAGAS = 2; // ALTERE AQUI para adicionar mais vagas (ex: 3, 4, 5...)
+    
+    const SUPABASE_URL = 'https://nyqvxezfiibojfdarsqn.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55cXZ4ZXpmaWlib2pmZGFyc3FuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MTczOTQsImV4cCI6MjA4MDA5MzM5NH0.nYVYqH1FuSsGQ2j6RMXT-mlG_th-nKWoV02TDiFOSTo';
+    
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     
     const totalDiv = document.getElementById('total');
     const statusBadge = document.getElementById('status-badge');
@@ -424,15 +430,15 @@
       atualizarHora();
     }
 
-    client.on('message', (topic, message) => {
-      const status = message.toString();
+      client.on('message', (topic, message) => {
+        const status = message.toString();
 
-      if(topic === 'estacionamento/acessos') {
-        totalAcessos = parseInt(status);
-        document.getElementById('total-acessos').textContent = totalAcessos;
-        adicionarHistorico(`🚗 Novo acesso registrado (#${totalAcessos})`);
-        return;
-      }
+        if(topic === 'estacionamento/acessos') {
+          totalAcessos = parseInt(status);
+          document.getElementById('total-acessos').textContent = totalAcessos;
+          adicionarHistorico(`🚗 Novo acesso registrado (#${totalAcessos})`);
+          return;
+        }
 
       // Detectar mensagens de vagas (vaga1:livre, vaga2:ocupada, vaga1:bloqueada, etc)
       const match = status.match(/^vaga(\d+):(.+)$/);

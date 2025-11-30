@@ -6,8 +6,8 @@
 #include <WiFiClientSecure.h>
 
 // --- CONFIG WIFI / MQTT ---
-const char* ssid = "PC_BatchProcessing";
-const char* password = "05042002";
+const char* ssid = "";
+const char* password = "";
 
 const char* mqttServer = "3c16c837ea4f4ac0966899396b41ab08.s1.eu.hivemq.cloud";
 const int mqttPort = 8883;  // TLS
