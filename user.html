@@ -16,6 +16,11 @@
       margin: 0;
       padding: 20px;
       min-height: 100vh;
+      transition: background 0.3s ease;
+    }
+    
+    body.dark-mode {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
     }
 
     .container {
@@ -25,49 +30,105 @@
       border-radius: 20px;
       padding: 30px 20px;
       box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+    
+    body.dark-mode .container {
+      background: #0f3460;
+      color: #e0e0e0;
     }
 
     h1 {
       font-size: 28px;
       color: #333;
       margin: 0 0 10px 0;
+      transition: color 0.3s ease;
+    }
+    
+    body.dark-mode h1 {
+      color: #e0e0e0;
+    }
+    
+    .theme-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .theme-toggle:hover {
+      transform: scale(1.1);
+      background: rgba(255,255,255,0.3);
+    }
+    
+    .theme-toggle:active {
+      transform: scale(0.95);
     }
 
     .status-badge {
       display: inline-block;
-      padding: 5px 15px;
+      padding: 6px 16px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
 
     .status-badge.online {
       background: #4CAF50;
       color: white;
+      animation: fadeIn 0.5s;
     }
 
     .status-badge.offline {
       background: #999;
       color: white;
     }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
 
     #total {
       font-size: 20px;
-      margin-bottom: 25px;
+      margin-bottom: 30px;
       font-weight: bold;
-      color: #555;
-      padding: 15px;
-      background: #f5f5f5;
-      border-radius: 10px;
+      color: #333;
+      padding: 25px 20px;
+      background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+      border-radius: 15px;
       display: inline-block;
-      min-width: 200px;
+      min-width: 250px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+    }
+    
+    body.dark-mode #total {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e0e0e0;
     }
 
     .total-number {
-      font-size: 32px;
-      color: #667eea;
+      font-size: 48px;
+      color: #4CAF50;
       display: block;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .total-number.nenhuma {
+      color: #F44336;
     }
 
     .vagas-container {
@@ -78,16 +139,26 @@
     }
 
     .vaga {
-      font-size: 18px;
-      padding: 25px 20px;
+      font-size: 20px;
+      padding: 30px 20px;
       border-radius: 15px;
       width: 100%;
       color: white;
       font-weight: bold;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
       transition: all 0.3s ease;
       position: relative;
       overflow: hidden;
+      transform: scale(1);
+    }
+    
+    .vaga.livre {
+      animation: pulseGreen 2s infinite;
+    }
+    
+    @keyframes pulseGreen {
+      0%, 100% { box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); }
+      50% { box-shadow: 0 6px 30px rgba(76, 175, 80, 0.5); }
     }
 
     .vaga::before {
@@ -119,91 +190,49 @@
     }
 
     .vaga-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
+      font-size: 48px;
+      margin-bottom: 10px;
       display: block;
     }
 
     .vaga-label {
       display: block;
-      font-size: 14px;
-      opacity: 0.9;
-      margin-bottom: 5px;
+      font-size: 16px;
+      opacity: 0.95;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    
+    .vaga-estado {
+      font-size: 18px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .ultima-atualizacao {
-      margin-top: 20px;
-      font-size: 12px;
+      margin-top: 25px;
+      font-size: 11px;
       color: #999;
+      opacity: 0.8;
     }
-
-    .info-extra {
-      margin-top: 20px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    
+    body.dark-mode #alerta-lotado {
+      background: #533c1e !important;
+      border-left-color: #ffa000 !important;
     }
-
-    .info-card {
-      background: #f9f9f9;
-      padding: 15px;
-      border-radius: 10px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    
+    body.dark-mode .info-section {
+      background: #16213e !important;
     }
-
-    .info-card-title {
-      font-size: 12px;
-      color: #999;
-      margin-bottom: 5px;
+    
+    body.dark-mode .info-card {
+      background: #0f3460 !important;
+      color: #e0e0e0 !important;
     }
-
-    .info-card-value {
-      font-size: 24px;
-      font-weight: bold;
-      color: #667eea;
-    }
-
-    .historico {
-      margin-top: 20px;
-      padding: 15px;
-      background: #f9f9f9;
-      border-radius: 10px;
-      text-align: left;
-    }
-
-    .historico-title {
-      font-size: 14px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 10px;
-    }
-
-    .historico-item {
-      font-size: 12px;
-      padding: 8px;
-      background: white;
-      margin-bottom: 5px;
-      border-radius: 5px;
-      border-left: 3px solid #667eea;
-    }
-
-    .tempo-medio {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 15px;
-      border-radius: 10px;
-      margin-top: 15px;
-    }
-
-    .tempo-medio-label {
-      font-size: 12px;
-      opacity: 0.9;
-    }
-
-    .tempo-medio-valor {
-      font-size: 28px;
-      font-weight: bold;
-      margin: 5px 0;
+    
+    body.dark-mode .info-label {
+      color: #999 !important;
     }
 
     @media (min-width: 500px){
@@ -216,55 +245,51 @@
         width: 48%;
       }
     }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
-    .loading {
-      animation: pulse 1.5s infinite;
-    }
   </style>
 </head>
 <body>
+  <button class="theme-toggle" id="theme-toggle" title="Alternar tema">🌙</button>
+  
   <div class="container">
+    <div id="status-badge" class="status-badge offline">Conectando...</div>
+    
     <h1>🅿️ Estacionamento</h1>
     
     <div id="total">
-      <div id="status-badge" class="status-badge offline" style="margin-bottom:10px;">Conectando...</div>
-      <div style="font-size:14px; color:#999; margin-bottom:5px;">Vagas Disponíveis</div>
+      <div style="font-size:16px; color:#666; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">Vagas Livres</div>
       <span class="total-number">0</span>
-      <div style="font-size:12px; color:#999; margin-top:5px;">de <span id="total-vagas">0</span> vagas</div>
+      <div style="font-size:14px; color:#999; margin-top:8px;">de <span id="total-vagas">0</span> disponíveis</div>
     </div>
 
     <div id="vagas-container" class="vagas-container">
       <!-- Vagas serão criadas dinamicamente -->
     </div>
 
-    <div class="info-extra">
-      <div class="info-card">
-        <div class="info-card-title">Total de Acessos</div>
-        <div class="info-card-value" id="total-acessos">0</div>
-      </div>
-      <div class="info-card">
-        <div class="info-card-title">Taxa de Ocupação</div>
-        <div class="info-card-value" id="taxa-ocupacao">0%</div>
-      </div>
+    <!-- Alerta quando lotado -->
+    <div id="alerta-lotado" style="display:none; margin-top:20px; padding:15px; background:#fff3cd; border-left:4px solid #ffc107; border-radius:8px; text-align:left; transition:all 0.3s ease;">
+      <div style="font-size:14px; color:#856404; font-weight:bold; margin-bottom:5px;">⚠️ Estacionamento Lotado</div>
+      <div style="font-size:12px; color:#856404;" id="tempo-espera">Tempo médio de espera: calculando...</div>
     </div>
 
-    <div class="tempo-medio">
-      <div class="tempo-medio-label">⏱️ Tempo Médio de Permanência</div>
-      <div class="tempo-medio-valor" id="tempo-medio">--</div>
-      <div class="tempo-medio-label">Estimativa baseada no histórico</div>
-    </div>
-
-    <div class="historico">
-      <div class="historico-title">📊 Últimas Mudanças</div>
-      <div id="historico-lista">
-        <div style="text-align:center; color:#999; font-size:12px; padding:20px;">
-          Aguardando atividades...
+    <!-- Informações Práticas -->
+    <div class="info-section" style="margin-top:25px; padding:20px; background:#f8f9fa; border-radius:12px; text-align:left; transition:all 0.3s ease;">
+      <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:12px; text-align:center;">ℹ️ Informações</div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:13px;">
+        <div class="info-card" style="padding:10px; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition:all 0.3s ease;">
+          <div class="info-label" style="color:#999; font-size:11px; margin-bottom:3px;">💰 Valor</div>
+          <div style="color:#333; font-weight:600;">R$ 5,00/hora</div>
         </div>
+        
+        <div class="info-card" style="padding:10px; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition:all 0.3s ease;">
+          <div class="info-label" style="color:#999; font-size:11px; margin-bottom:3px;">🕐 Horário</div>
+          <div style="color:#333; font-weight:600;">24h</div>
+        </div>
+      </div>
+      
+      <div class="info-card" style="margin-top:10px; padding:10px; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); text-align:center; transition:all 0.3s ease;">
+        <div class="info-label" style="color:#999; font-size:11px; margin-bottom:3px;">⏱️ Tempo Médio de Permanência</div>
+        <div style="color:#667eea; font-weight:600; font-size:16px;" id="tempo-medio-user">--</div>
       </div>
     </div>
 
@@ -289,9 +314,7 @@
 
     // Estruturas dinâmicas
     let vagas = {}; // {1: {estado: 'livre', livre: 1, timestamp: null, div: element}}
-    let totalAcessos = 0;
-    let historico = [];
-    let temposOcupacao = [];
+    let temposOcupacao = []; // Armazena últimas 30 durações
 
     // Criar vagas dinamicamente
     document.getElementById('total-vagas').textContent = NUM_VAGAS;
@@ -327,8 +350,7 @@
     client.on('connect', () => {
       console.log('✅ Conectado ao MQTT');
       client.subscribe('vaga/topico');
-      client.subscribe('estacionamento/acessos');
-      statusBadge.textContent = 'Online';
+      statusBadge.textContent = '● Sistema Online';
       statusBadge.classList.remove('offline');
       statusBadge.classList.add('online');
       
@@ -356,11 +378,59 @@
 
     function atualizarTotal() {
       const livres = Object.values(vagas).reduce((sum, v) => sum + v.livre, 0);
+      const classe = livres === 0 ? 'nenhuma' : '';
       totalDiv.innerHTML = `
-        <div style="font-size:14px; color:#999; margin-bottom:5px;">Vagas Disponíveis</div>
-        <span class="total-number">${livres}</span>
-        <div style="font-size:12px; color:#999; margin-top:5px;">de ${NUM_VAGAS} vagas</div>
+        <div style="font-size:16px; color:#666; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">Vagas Livres</div>
+        <span class="total-number ${classe}">${livres}</span>
+        <div style="font-size:14px; color:#999; margin-top:8px;">de ${NUM_VAGAS} disponíveis</div>
       `;
+      
+      // Mostrar/esconder alerta de lotado
+      const alertaLotado = document.getElementById('alerta-lotado');
+      if(livres === 0) {
+        alertaLotado.style.display = 'block';
+        atualizarTempoEspera();
+      } else {
+        alertaLotado.style.display = 'none';
+      }
+    }
+    
+    function formatarTempo(ms) {
+      const segundos = Math.floor(ms / 1000);
+      const minutos = Math.floor(segundos / 60);
+      const horas = Math.floor(minutos / 60);
+      
+      if(segundos < 60) return `${segundos}s`;
+      if(minutos < 60) return `${minutos}min ${segundos % 60}s`;
+      return `${horas}h ${minutos % 60}min`;
+    }
+    
+    function calcularTempoMedio() {
+      if(temposOcupacao.length === 0) return null;
+      const media = temposOcupacao.reduce((a, b) => a + b, 0) / temposOcupacao.length;
+      return media;
+    }
+    
+    function atualizarTempoEspera() {
+      const media = calcularTempoMedio();
+      const tempoEsperaEl = document.getElementById('tempo-espera');
+      
+      if(media) {
+        tempoEsperaEl.textContent = `Tempo médio de espera: ${formatarTempo(media)}`;
+      } else {
+        tempoEsperaEl.textContent = 'Tempo médio de espera: aguardando dados...';
+      }
+    }
+    
+    function atualizarTempoMedioDisplay() {
+      const media = calcularTempoMedio();
+      const displayEl = document.getElementById('tempo-medio-user');
+      
+      if(media) {
+        displayEl.textContent = formatarTempo(media);
+      } else {
+        displayEl.textContent = '--';
+      }
     }
 
     function getIcone(estado) {
@@ -373,47 +443,8 @@
     function getTexto(estado) {
       if(estado === 'livre') return 'Livre';
       if(estado === 'ocupada') return 'Ocupada';
-      if(estado === 'bloqueada') return 'Bloqueada';
-      return 'Desconhecido';
-    }
-
-    function adicionarHistorico(mensagem) {
-      const agora = new Date();
-      const hora = agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
-      historico.unshift({mensagem, hora, timestamp: agora});
-      
-      // Manter apenas últimos 5
-      if(historico.length > 5) historico.pop();
-      
-      const lista = document.getElementById('historico-lista');
-      lista.innerHTML = historico.map(h => 
-        `<div class="historico-item">
-          <span style="color:#667eea; font-weight:bold;">${h.hora}</span> - ${h.mensagem}
-        </div>`
-      ).join('');
-    }
-
-    function formatarTempo(ms) {
-      const segundos = Math.floor(ms / 1000);
-      const minutos = Math.floor(segundos / 60);
-      const horas = Math.floor(minutos / 60);
-      
-      if(segundos < 60) return `${segundos}s`;
-      if(minutos < 60) return `${minutos}min ${segundos % 60}s`;
-      return `${horas}h ${minutos % 60}min`;
-    }
-
-    function calcularTempoMedio() {
-      if(temposOcupacao.length === 0) return '--';
-      const media = temposOcupacao.reduce((a, b) => a + b, 0) / temposOcupacao.length;
-      return formatarTempo(media);
-    }
-
-    function atualizarTaxaOcupacao() {
-      const livres = Object.values(vagas).reduce((sum, v) => sum + v.livre, 0);
-      const ocupadas = NUM_VAGAS - livres;
-      const taxa = Math.round((ocupadas / NUM_VAGAS) * 100);
-      document.getElementById('taxa-ocupacao').textContent = taxa + '%';
+      if(estado === 'bloqueada') return 'Indisponível';
+      return 'Carregando';
     }
 
     function atualizarVaga(div, numero, estado) {
@@ -426,22 +457,14 @@
       div.innerHTML = `
         <span class="vaga-icon">${icone}</span>
         <span class="vaga-label">Vaga ${numero}</span>
-        <span>${texto}</span>
+        <span class="vaga-estado">${texto}</span>
       `;
       
-      adicionarHistorico(`Vaga ${numero} ficou ${texto.toLowerCase()}`);
       atualizarHora();
     }
 
-      client.on('message', (topic, message) => {
-        const status = message.toString();
-
-        if(topic === 'estacionamento/acessos') {
-          totalAcessos = parseInt(status);
-          document.getElementById('total-acessos').textContent = totalAcessos;
-          adicionarHistorico(`🚗 Novo acesso registrado (#${totalAcessos})`);
-          return;
-        }
+    client.on('message', (topic, message) => {
+      const status = message.toString();
 
       // Detectar mensagens de vagas (vaga1:livre, vaga2:ocupada, vaga1:bloqueada, etc)
       const match = status.match(/^vaga(\d+):(.+)$/);
@@ -461,36 +484,37 @@
         // Vaga só conta como livre se não estiver bloqueada
         vaga.livre = (novoEstado === "livre") ? 1 : 0;
         
-        // Calcular tempo REAL de ocupação (não conta bloqueio)
-        if(novoEstado === 'ocupada' && estadoAnterior !== 'ocupada' && estadoAnterior !== 'bloqueada') {
-          // Marca quando ficou ocupada
+        // Rastrear tempo de ocupação
+        if(novoEstado === 'ocupada' && estadoAnterior !== 'ocupada') {
           vaga.timestamp = Date.now();
-        } else if(estadoAnterior === 'ocupada' && (novoEstado === 'livre' || novoEstado === 'bloqueada')) {
-          // Calcula quanto tempo ficou ocupada
+        } else if(estadoAnterior === 'ocupada' && novoEstado === 'livre') {
           if(vaga.timestamp) {
-            const tempoReal = Date.now() - vaga.timestamp;
-            temposOcupacao.push(tempoReal);
-            if(temposOcupacao.length > 10) temposOcupacao.shift();
-            document.getElementById('tempo-medio').textContent = calcularTempoMedio();
-            console.log(`Vaga ${numVaga} ficou ocupada por: ${formatarTempo(tempoReal)}`);
+            const duracao = Date.now() - vaga.timestamp;
+            // Ignorar ocupações muito curtas (< 5s) - provavelmente detecção acidental
+            if(duracao >= 5000) {
+              temposOcupacao.push(duracao);
+              if(temposOcupacao.length > 30) temposOcupacao.shift();
+              atualizarTempoMedioDisplay();
+            } else {
+              console.log(`⚠️ Ocupação muito curta ignorada: ${Math.floor(duracao/1000)}s`);
+            }
             vaga.timestamp = null;
           }
         }
         
         atualizarVaga(vaga.div, numVaga, novoEstado);
         atualizarTotal();
-        atualizarTaxaOcupacao();
       }
     });
 
     // Carregar estado inicial das vagas do banco
     async function carregarEstadoInicial() {
       try {
-        // Buscar última mudança de cada vaga
+        // Buscar última mudança de cada vaga com timestamp
         for(let i = 1; i <= NUM_VAGAS; i++) {
           const { data, error } = await supabase
             .from('historico_vagas')
-            .select('estado_novo')
+            .select('estado_novo, estado_anterior, timestamp')
             .eq('numero_vaga', i)
             .order('timestamp', { ascending: false })
             .limit(1);
@@ -500,6 +524,12 @@
             const vaga = vagas[i];
             vaga.estado = estado;
             vaga.livre = (estado === 'livre') ? 1 : 0;
+            
+            // Se vaga já está ocupada, marcar timestamp do banco (não do F5)
+            if(estado === 'ocupada') {
+              vaga.timestamp = new Date(data[0].timestamp).getTime();
+            }
+            
             atualizarVaga(vaga.div, i, estado);
             console.log(`✅ Vaga ${i} carregada do banco: ${estado}`);
           } else {
@@ -508,7 +538,9 @@
         }
         
         atualizarTotal();
-        atualizarTaxaOcupacao();
+        
+        // Carregar tempo médio do banco
+        await carregarTempoMedioDoBanco();
         
       } catch(e) {
         console.warn('⚠️ Erro ao carregar estado inicial:', e.message);
@@ -516,8 +548,97 @@
       }
     }
     
+    // Carregar tempo médio de permanência do banco (últimas 30 ocupações)
+    async function carregarTempoMedioDoBanco() {
+      try {
+        // Buscar histórico de mudanças ordenado por tempo (últimas 200 para garantir)
+        const { data, error } = await supabase
+          .from('historico_vagas')
+          .select('numero_vaga, estado_anterior, estado_novo, timestamp')
+          .order('timestamp', { ascending: false })
+          .limit(200);
+        
+        if(error || !data) {
+          console.log('💡 Não há dados suficientes para calcular tempo médio');
+          return;
+        }
+        
+        // Processar dados por vaga para encontrar pares ocupada->livre
+        const ocupacoesCompletas = []; // {duracao, timestampFim}
+        
+        // Ordenar por tempo crescente para processar cronologicamente
+        const historico = data.reverse();
+        
+        // Rastrear quando cada vaga ficou ocupada
+        const timestampsOcupacao = {};
+        
+        for(const mudanca of historico) {
+          const vagaNum = mudanca.numero_vaga;
+          const timestamp = new Date(mudanca.timestamp).getTime();
+          
+          // Quando fica ocupada, marcar timestamp
+          if(mudanca.estado_novo === 'ocupada' && mudanca.estado_anterior !== 'ocupada') {
+            timestampsOcupacao[vagaNum] = timestamp;
+          }
+          // Quando libera, calcular duração e guardar com timestamp do fim
+          else if(mudanca.estado_anterior === 'ocupada' && mudanca.estado_novo === 'livre') {
+            if(timestampsOcupacao[vagaNum]) {
+              const duracao = timestamp - timestampsOcupacao[vagaNum];
+              // Ignorar ocupações muito curtas (< 5s) - provavelmente detecção acidental
+              if(duracao >= 5000) {
+                ocupacoesCompletas.push({
+                  duracao: duracao,
+                  timestampFim: timestamp
+                });
+              }
+              delete timestampsOcupacao[vagaNum];
+            }
+          }
+        }
+        
+        // Ordenar por timestamp do fim (mais recente primeiro) e pegar últimas 30
+        ocupacoesCompletas.sort((a, b) => b.timestampFim - a.timestampFim);
+        const ultimas30 = ocupacoesCompletas.slice(0, 30).map(o => o.duracao);
+        
+        if(ultimas30.length > 0) {
+          temposOcupacao = ultimas30;
+          atualizarTempoMedioDisplay();
+          console.log(`✅ Tempo médio carregado: ${ultimas30.length} ocupações encontradas (≥5s)`);
+        } else {
+          console.log('💡 Nenhuma ocupação completa encontrada no histórico');
+        }
+        
+      } catch(e) {
+        console.warn('⚠️ Erro ao calcular tempo médio:', e.message);
+      }
+    }
+    
     // Atualizar hora a cada segundo
     setInterval(atualizarHora, 1000);
+    
+    // === MODO NOTURNO ===
+    const themeToggle = document.getElementById('theme-toggle');
+    const body = document.body;
+    
+    // Carregar preferência salva
+    const savedTheme = localStorage.getItem('theme');
+    if(savedTheme === 'dark') {
+      body.classList.add('dark-mode');
+      themeToggle.textContent = '☀️';
+    }
+    
+    // Toggle ao clicar
+    themeToggle.addEventListener('click', () => {
+      body.classList.toggle('dark-mode');
+      
+      if(body.classList.contains('dark-mode')) {
+        themeToggle.textContent = '☀️';
+        localStorage.setItem('theme', 'dark');
+      } else {
+        themeToggle.textContent = '🌙';
+        localStorage.setItem('theme', 'light');
+      }
+    });
   </script>
 </body>
 </html>
