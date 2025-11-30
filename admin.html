@@ -2,10 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin - Estacionamento</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+  * { box-sizing: border-box; }
   body { margin:0; font-family: Arial, sans-serif; background:#f5f5f5; color:#222; }
   header { padding:20px; background:#1976d2; color:white; text-align:center; font-size:28px; font-weight:bold; }
   .container { max-width:1400px; margin:auto; padding:20px; }
@@ -27,6 +29,7 @@
   .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
   .card-small { padding:15px; }
   .stat-number { font-size:32px; font-weight:bold; color:#1976d2; margin:10px 0; }
+  .lcd-input-container { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   
   /* Responsividade Mobile */
   @media(max-width:900px){ 
@@ -120,9 +123,17 @@
       max-height:200px;
     }
     /* Input LCD responsivo */
-    input[type="text"] {
+    .lcd-input-container {
+      flex-direction:column;
+    }
+    .lcd-input-container input {
       font-size:13px !important;
       padding:8px 10px !important;
+      width:100% !important;
+    }
+    .lcd-input-container button {
+      width:100%;
+      margin-right:0;
     }
   }
 </style>
@@ -204,7 +215,7 @@
   <!-- Edição LCD -->
   <div class="card">
     <h2>Editar Mensagem do LCD</h2>
-    <div style="display:flex; gap:10px; align-items:center;">
+    <div class="lcd-input-container">
       <input type="text" id="lcdInput" placeholder="Digite o texto para exibir no LCD" style="padding:8px 12px; font-size:14px; flex:1;">
       <button class="btn desbloquear" onclick="enviarLCD()">Enviar para LCD</button>
     </div>
