@@ -25,9 +25,26 @@
   .filtro select { padding:6px 10px; font-size:14px; }
   .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
   .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
-  @media(max-width:900px){ .grid-2, .grid-3 { grid-template-columns:1fr; } }
   .card-small { padding:15px; }
   .stat-number { font-size:32px; font-weight:bold; color:#1976d2; margin:10px 0; }
+  
+  /* Responsividade Mobile */
+  @media(max-width:900px){ 
+    .grid-2, .grid-3 { grid-template-columns:1fr; }
+    header { font-size:22px; padding:15px; }
+    .container { padding:10px; }
+    .card { padding:15px; }
+    .card h2 { font-size:18px; }
+    .stat-number { font-size:28px; }
+    canvas { max-height:250px; }
+    .btn { padding:6px 12px; font-size:13px; }
+    .vaga-status { font-size:16px; }
+  }
+  
+  @media(max-width:500px){
+    .stat-number { font-size:24px; }
+    .card-small { padding:10px; }
+  }
 </style>
 </head>
 <body>
