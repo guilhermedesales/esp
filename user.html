@@ -221,18 +221,32 @@
       background: #533c1e !important;
       border-left-color: #ffa000 !important;
     }
-    
+
+    /* Info cards: forçar contraste no modo escuro mesmo quando há estilos inline */
     body.dark-mode .info-section {
       background: #16213e !important;
+      color: #e0e0e0 !important;
     }
-    
+
+    /* Título dentro da seção de informações (tem inline color) */
+    body.dark-mode .info-section > div {
+      color: #e0e0e0 !important;
+    }
+
     body.dark-mode .info-card {
       background: #0f3460 !important;
       color: #e0e0e0 !important;
     }
-    
+
+    /* Garantir que qualquer texto dentro do card fique claro (override inline styles) */
+    body.dark-mode .info-card,
+    body.dark-mode .info-card * {
+      color: #e0e0e0 !important;
+    }
+
+    /* Rótulos menores devem ser um pouco mais suaves, mas legíveis */
     body.dark-mode .info-label {
-      color: #999 !important;
+      color: #cfcfcf !important;
     }
 
     @media (min-width: 500px){
