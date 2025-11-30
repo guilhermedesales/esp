@@ -303,33 +303,36 @@
       console.log("   Vaga:", vaga, "| Estado:", estado);
       
       let el = vaga==="vaga1" ? statusEl1 : statusEl2;
-      let bloqueado = vaga==="vaga1" ? bloqueado1 : bloqueado2;
       let estadoAnterior = vaga==="vaga1" ? valor1 : valor2;
 
-      console.log("   Estado anterior:", estadoAnterior, "| Bloqueado:", bloqueado);
+      console.log("   Estado anterior:", estadoAnterior);
 
-      // Atualiza estado da vaga
+      // Atualiza estado da vaga (agora inclui bloqueada)
       if(vaga==="vaga1") {
-        valor1 = estado === "bloqueada" ? valor1 : estado;
-        console.log("   Valor1 agora:", valor1);
+        valor1 = estado;
+        // Atualiza flag de bloqueio local
+        bloqueado1 = (estado === "bloqueada");
+        console.log("   Valor1 agora:", valor1, "| Bloqueado1:", bloqueado1);
       }
       if(vaga==="vaga2") {
-        valor2 = estado === "bloqueada" ? valor2 : estado;
-        console.log("   Valor2 agora:", valor2);
+        valor2 = estado;
+        // Atualiza flag de bloqueio local
+        bloqueado2 = (estado === "bloqueada");
+        console.log("   Valor2 agora:", valor2, "| Bloqueado2:", bloqueado2);
       }
 
-      // Mostra status correto (prioridade para bloqueio local)
-      if(bloqueado){
+      // Mostra status correto baseado no estado recebido
+      if(estado==="bloqueada"){
         el.textContent="bloqueada";
         el.className="status status-bloqueada";
-        console.log("   ⚠️ Exibindo como BLOQUEADA (bloqueio local ativo)");
-      } else if(estado==="ocupada" || estado==="bloqueada"){
+        console.log("   ⚠️ Exibindo como BLOQUEADA");
+      } else if(estado==="ocupada"){
         el.textContent="ocupada";
         el.className="status status-ocupada";
         console.log("   🔴 Exibindo como OCUPADA");
         
         // Incrementa contador apenas quando muda de livre para ocupada
-        if(estadoAnterior!=="ocupada" && estado!=="bloqueada"){
+        if(estadoAnterior!=="ocupada" && estadoAnterior!=="bloqueada"){
           if(vaga==="vaga1") {
             contVaga1++;
             console.log("   📊 ContVaga1:", contVaga1);
@@ -353,18 +356,16 @@
   });
 
   function bloquear(n){
+    // Publica estado bloqueado direto no tópico principal
+    client.publish("vaga/topico", `vaga${n}:bloqueada`);
+    // Mantém compatibilidade com ESP32 antigo
     client.publish(`estacionamento/vaga${n}/bloqueio`,"true");
-    if(n===1) bloqueado1=true;
-    if(n===2) bloqueado2=true;
-    atualizarBotoes();
-    atualizarResumo();
   }
   function desbloquear(n){
+    // Publica estado livre direto no tópico principal
+    client.publish("vaga/topico", `vaga${n}:livre`);
+    // Mantém compatibilidade com ESP32 antigo
     client.publish(`estacionamento/vaga${n}/bloqueio`,"false");
-    if(n===1) bloqueado1=false;
-    if(n===2) bloqueado2=false;
-    atualizarBotoes();
-    atualizarResumo();
   }
 
   

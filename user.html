@@ -431,7 +431,7 @@
         return;
       }
 
-      // Detectar mensagens de vagas (vaga1:livre, vaga2:ocupada, etc)
+      // Detectar mensagens de vagas (vaga1:livre, vaga2:ocupada, vaga1:bloqueada, etc)
       const match = status.match(/^vaga(\d+):(.+)$/);
       if(match) {
         const numVaga = parseInt(match[1]);
@@ -446,13 +446,14 @@
         const vaga = vagas[numVaga];
         const estadoAnterior = vaga.estado;
         vaga.estado = novoEstado;
-        vaga.livre = (novoEstado === "livre" && novoEstado !== "bloqueada") ? 1 : 0;
+        // Vaga só conta como livre se não estiver bloqueada
+        vaga.livre = (novoEstado === "livre") ? 1 : 0;
         
-        // Calcular tempo REAL de ocupação
-        if(novoEstado === 'ocupada' && estadoAnterior !== 'ocupada') {
+        // Calcular tempo REAL de ocupação (não conta bloqueio)
+        if(novoEstado === 'ocupada' && estadoAnterior !== 'ocupada' && estadoAnterior !== 'bloqueada') {
           // Marca quando ficou ocupada
           vaga.timestamp = Date.now();
-        } else if(estadoAnterior === 'ocupada' && novoEstado === 'livre') {
+        } else if(estadoAnterior === 'ocupada' && (novoEstado === 'livre' || novoEstado === 'bloqueada')) {
           // Calcula quanto tempo ficou ocupada
           if(vaga.timestamp) {
             const tempoReal = Date.now() - vaga.timestamp;
