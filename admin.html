@@ -622,7 +622,7 @@
           estado_novo: estadoNovo,
           timestamp: new Date().toISOString()
         });
-        calcularMetricas();
+        await calcularMetricas();
         
         return true;
       }
@@ -731,7 +731,7 @@
       await carregarMudancasVagasHoje();
       
       // Calcular métricas
-      calcularMetricas();
+      await calcularMetricas();
       
     } catch(e) {
       console.warn('⚠️ Erro ao carregar estado inicial:', e.message);
@@ -957,9 +957,9 @@
     }
   }
 
-  function calcularMetricas() {
+  async function calcularMetricas() {
     calcularTaxaOcupacao();
-    calcularTempoMedio();
+    await calcularTempoMedio();
     calcularHorarioPico();
   }
 
@@ -979,48 +979,77 @@
     taxaEl.textContent = Math.round(taxaOcupacao);
   }
 
-  function calcularTempoMedio() {
+  async function calcularTempoMedio() {
     const tempoEl = document.getElementById('tempoMedio');
     if(!tempoEl) return;
-    
-    // Calcular duração média de ocupação (quando vaga vai de livre->ocupada até ocupada->livre)
-    const durações = [];
-    const NUM_VAGAS = 2;
-    
-    for(let vagaNum = 1; vagaNum <= NUM_VAGAS; vagaNum++) {
-      const mudancasVaga = mudancasVagasHoje.filter(m => m.numero_vaga === vagaNum).sort((a,b) => 
-        new Date(a.timestamp) - new Date(b.timestamp)
-      );
-      
-      let inicioOcupacao = null;
-      
-      for(const mudanca of mudancasVaga) {
+
+    try {
+      // Buscar últimas 200 mudanças para processar pares ocupada->livre
+      const { data, error } = await supabase
+        .from('historico_vagas')
+        .select('numero_vaga, estado_anterior, estado_novo, timestamp')
+        .order('timestamp', { ascending: false })
+        .limit(200);
+
+      if(error || !data) {
+        console.log('💡 Não foi possível carregar histórico para tempo médio');
+        // fallback: manter cálculo local se existir
+        if(window.temposOcupacao && window.temposOcupacao.length) {
+          const mediaMs = window.temposOcupacao.reduce((a,b)=>a+b,0)/window.temposOcupacao.length;
+          tempoEl.textContent = formatarTempoAdmin(mediaMs);
+          return;
+        }
+        tempoEl.textContent = '--';
+        return;
+      }
+
+      // Processar cronologicamente
+      const historico = data.reverse();
+      const timestampsOcupacao = {};
+      const ocupacoesCompletas = []; // {duracao, timestampFim}
+
+      for(const mudanca of historico) {
+        const vagaNum = mudanca.numero_vaga;
+        const ts = new Date(mudanca.timestamp).getTime();
+
         if(mudanca.estado_novo === 'ocupada' && mudanca.estado_anterior !== 'ocupada') {
-          inicioOcupacao = new Date(mudanca.timestamp);
-        } else if(mudanca.estado_novo !== 'ocupada' && mudanca.estado_anterior === 'ocupada' && inicioOcupacao) {
-          const fimOcupacao = new Date(mudanca.timestamp);
-          const duracao = fimOcupacao - inicioOcupacao;
-          durações.push(duracao);
-          inicioOcupacao = null;
+          timestampsOcupacao[vagaNum] = ts;
+        } else if(mudanca.estado_anterior === 'ocupada' && mudanca.estado_novo === 'livre') {
+          if(timestampsOcupacao[vagaNum]) {
+            const duracao = ts - timestampsOcupacao[vagaNum];
+            // Ignorar ocupações muito curtas (<5s)
+            if(duracao >= 5000) {
+              ocupacoesCompletas.push({ duracao, timestampFim: ts });
+            }
+            delete timestampsOcupacao[vagaNum];
+          }
         }
       }
+
+      // Ordenar por fim mais recente e pegar últimas 30
+      ocupacoesCompletas.sort((a,b) => b.timestampFim - a.timestampFim);
+      const ultimas = ocupacoesCompletas.slice(0,30).map(o => o.duracao);
+
+      if(ultimas.length === 0) {
+        tempoEl.textContent = '--';
+        return;
+      }
+
+      const mediaMs = ultimas.reduce((a,b)=>a+b,0)/ultimas.length;
+      tempoEl.textContent = formatarTempoAdmin(mediaMs);
+    } catch(e) {
+      console.warn('Erro ao calcular tempo médio (admin):', e.message);
     }
-    
-    if(durações.length === 0) {
-      tempoEl.textContent = '--';
-      return;
-    }
-    
-    const mediaMs = durações.reduce((a,b) => a+b, 0) / durações.length;
-    const minutos = Math.round(mediaMs / (1000 * 60));
-    
-    if(minutos < 60) {
-      tempoEl.textContent = `${minutos}min`;
-    } else {
-      const horas = Math.floor(minutos / 60);
-      const mins = minutos % 60;
-      tempoEl.textContent = `${horas}h${mins}m`;
-    }
+  }
+
+  function formatarTempoAdmin(ms) {
+    const segundos = Math.floor(ms / 1000);
+    const minutos = Math.floor(segundos / 60);
+    const horas = Math.floor(minutos / 60);
+
+    if(segundos < 60) return `${segundos}s`;
+    if(minutos < 60) return `${minutos}min ${segundos % 60}s`;
+    return `${horas}h ${minutos % 60}min`;
   }
 
   function calcularHorarioPico() {
