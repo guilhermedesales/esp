@@ -296,9 +296,10 @@
     console.log("   Mensagem:", msg);
     
     if(topic=="estacionamento/acessos"){
-      // Incrementa contador local ao invés de sobrescrever
+      // IGNORA o valor do ESP - apenas incrementa 1
+      // O banco é a fonte da verdade, não o ESP32
       totalAcessos++;
-      console.log("✅ Novo acesso registrado! Total agora:", totalAcessos);
+      console.log("✅ Novo acesso registrado! Total agora:", totalAcessos, "(ESP enviou:", msg, ")");
       document.getElementById("acessos").textContent=totalAcessos;
       adicionarAcesso();
     }
