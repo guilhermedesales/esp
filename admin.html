@@ -294,8 +294,9 @@
     console.log("   Mensagem:", msg);
     
     if(topic=="estacionamento/acessos"){
-      totalAcessos=parseInt(msg);
-      console.log("✅ Acessos atualizado para:", totalAcessos);
+      // Incrementa contador local ao invés de sobrescrever
+      totalAcessos++;
+      console.log("✅ Novo acesso registrado! Total agora:", totalAcessos);
       document.getElementById("acessos").textContent=totalAcessos;
       adicionarAcesso();
     }
@@ -344,7 +345,7 @@
         el.className="status status-ocupada";
         console.log("   🔴 Exibindo como OCUPADA");
         
-        // Incrementa contador apenas quando muda de livre para ocupada
+        // Incrementa contador em tempo real quando muda de livre/bloqueada para ocupada
         if(estadoAnterior!=="ocupada" && estadoAnterior!=="bloqueada"){
           if(vaga==="vaga1") {
             contVaga1++;
@@ -458,7 +459,9 @@
   async function adicionarAcesso(){
     const now = new Date();
     historicoAcessos.push(now);
-    atualizarGraficoAcessos();
+    // Usa renderizarGraficoAcessos() para apenas atualizar visual
+    // NÃO usa atualizarGraficoAcessos() que recarrega tudo do banco
+    renderizarGraficoAcessos();
     
     // Salvar no Supabase
     try {
@@ -478,6 +481,12 @@
   
   // Função para salvar mudança de estado de vaga
   async function salvarMudancaVaga(numeroVaga, estadoNovo, estadoAnterior){
+    // Só salva se o estado realmente mudou
+    if(estadoNovo === estadoAnterior) {
+      console.log(`⏭️ Estado da vaga ${numeroVaga} não mudou (${estadoNovo}), não salva no banco`);
+      return false;
+    }
+    
     try {
       const { error } = await supabase
         .from('historico_vagas')
@@ -488,10 +497,16 @@
           timestamp: new Date().toISOString()
         });
       
-      if(error) console.error('Erro ao salvar mudança:', error);
-      else console.log(`✅ Mudança vaga ${numeroVaga} salva`);
+      if(error) {
+        console.error('Erro ao salvar mudança:', error);
+        return false;
+      } else {
+        console.log(`✅ Mudança vaga ${numeroVaga} salva`);
+        return true;
+      }
     } catch(e) {
       console.error('Erro Supabase:', e);
+      return false;
     }
   }
   
@@ -545,20 +560,18 @@
         console.log('💡 Vaga 2 iniciada como livre (sem dados no banco)');
       }
       
-      // Carregar total de acessos do dia
+      // Carregar total de acessos do dia (CONTAR todos registros de hoje)
       const hoje = new Date();
       hoje.setHours(0,0,0,0);
       const { data: acessosHoje, error: errorAcessos } = await supabase
         .from('acessos')
-        .select('total')
-        .gte('timestamp', hoje.toISOString())
-        .order('timestamp', { ascending: false })
-        .limit(1);
+        .select('*', { count: 'exact' })
+        .gte('timestamp', hoje.toISOString());
       
-      if(!errorAcessos && acessosHoje && acessosHoje.length > 0){
-        totalAcessos = acessosHoje[0].total;
+      if(!errorAcessos && acessosHoje){
+        totalAcessos = acessosHoje.length; // Conta quantos registros tem hoje
         document.getElementById('acessos').textContent = totalAcessos;
-        console.log(`✅ Total de acessos do dia carregado: ${totalAcessos}`);
+        console.log(`✅ Total de acessos do dia carregado: ${totalAcessos} registros`);
       } else {
         totalAcessos = 0;
         document.getElementById('acessos').textContent = 0;
