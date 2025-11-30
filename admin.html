@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Admin - Estacionamento</title>
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  body { margin:0; font-family: Arial, sans-serif; background:#f5f5f5; color:#222; }
+  header { padding:20px; background:#1976d2; color:white; text-align:center; font-size:28px; font-weight:bold; }
+  .container { max-width:1400px; margin:auto; padding:20px; }
+  .card { background:#fff; padding:20px; border-radius:10px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+  .card h2 { margin-top:0; color:#1976d2; font-size:20px; }
+  .vaga-status { font-size:18px; margin-bottom:8px; }
+  .status-livre { color:#388e3c; font-weight:bold; }
+  .status-ocupada { color:#d32f2f; font-weight:bold; }
+  .status-bloqueada { color:#fbc02d; font-weight:bold; }
+  .btn { padding:8px 14px; border:none; border-radius:6px; margin-right:8px; cursor:pointer; font-size:14px; transition:.2s; }
+  .btn:hover { opacity:.8; }
+  .bloquear { background:#d32f2f; color:white; }
+  .desbloquear { background:#388e3c; color:white; }
+  .btn.disabled { background:#ccc; cursor:not-allowed; }
+  canvas { margin-top:10px; max-height:300px; }
+  .filtro { margin-bottom:15px; }
+  .filtro select { padding:6px 10px; font-size:14px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid-3 { display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
+  @media(max-width:900px){ .grid-2, .grid-3 { grid-template-columns:1fr; } }
+  .card-small { padding:15px; }
+  .stat-number { font-size:32px; font-weight:bold; color:#1976d2; margin:10px 0; }
+</style>
+</head>
+<body>
+
+<header>Painel Administrativo do Estacionamento</header>
+
+<div class="container">
+
+  <!-- Linha 1: Cards de Resumo -->
+  <div class="grid-3">
+    <div class="card card-small">
+      <h2>Total de Acessos</h2>
+      <div class="stat-number"><span id="acessos">0</span></div>
+      <p style="color:#666; margin:0;">entradas registradas</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Vagas Livres</h2>
+      <div class="stat-number" style="color:#388e3c;"><span id="livres">0</span></div>
+      <p style="color:#666; margin:0;">de 2 disponíveis</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Vagas Ocupadas</h2>
+      <div class="stat-number" style="color:#d32f2f;"><span id="ocupadas">0</span></div>
+      <p style="color:#666; margin:0;">de 2 vagas</p>
+    </div>
+  </div>
+
+  <!-- Linha 2: Status e Gráfico Pizza -->
+  <div class="grid-2">
+    <!-- Status das Vagas -->
+    <div class="card">
+      <h2>Status das Vagas</h2>
+      <div>
+        <p class="vaga-status">Vaga 1 — <span id="s1" class="status">?</span></p>
+        <button id="btnBloq1" class="btn bloquear" onclick="bloquear(1)">Bloquear</button>
+        <button id="btnDesbloq1" class="btn desbloquear" onclick="desbloquear(1)">Desbloquear</button>
+      </div>
+      <div style="margin-top:10px;">
+        <p class="vaga-status">Vaga 2 — <span id="s2" class="status">?</span></p>
+        <button id="btnBloq2" class="btn bloquear" onclick="bloquear(2)">Bloquear</button>
+        <button id="btnDesbloq2" class="btn desbloquear" onclick="desbloquear(2)">Desbloquear</button>
+      </div>
+    </div>
+
+    <!-- Gráfico de ocupação percentual -->
+    <div class="card">
+      <h2>Ocupação Percentual</h2>
+      <canvas id="graficoOcupacao"></canvas>
+    </div>
+  </div>
+
+  <!-- Linha 3: Gráficos de Análise -->
+  <div class="grid-2">
+    <!-- Comparativo Vagas -->
+    <div class="card">
+      <h2>Comparativo de Uso das Vagas</h2>
+      <canvas id="graficoVagas"></canvas>
+    </div>
+
+    <!-- Filtro Acessos -->
+    <div class="card">
+      <h2>Acessos ao Longo do Tempo</h2>
+      <div class="filtro">
+        <label for="filtroTempo">Filtrar por:</label>
+        <select id="filtroTempo" onchange="atualizarGraficoAcessos()">
+          <option value="dia" selected>Dia</option>
+          <option value="semana">Semana</option>
+          <option value="mes">Mês</option>
+        </select>
+      </div>
+      <canvas id="graficoAcessos"></canvas>
+    </div>
+  </div>
+
+  <!-- Edição LCD -->
+  <div class="card">
+    <h2>Editar Mensagem do LCD</h2>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <input type="text" id="lcdInput" placeholder="Digite o texto para exibir no LCD" style="padding:8px 12px; font-size:14px; flex:1;">
+      <button class="btn desbloquear" onclick="enviarLCD()">Enviar para LCD</button>
+    </div>
+  </div>
+
+  <script>
+  function enviarLCD(){
+    const texto = document.getElementById("lcdInput").value;
+    if(texto.length > 0){
+      client.publish("estacionamento/lcd", texto);
+      document.getElementById("lcdInput").value = "";
+    }
+  }
+  </script>
+
+</div>
+
+<script>
+  // MQTT
+  const client = mqtt.connect("ws://192.168.137.1:9001"); // ipconfig
+  client.on("connect", ()=>{
+    console.log("MQTT Conectado");
+    client.subscribe("estacionamento/acessos", (err)=>{
+      if(!err) console.log("Inscrito em estacionamento/acessos");
+    });
+    client.subscribe("vaga/topico", (err)=>{
+      if(!err) console.log("Inscrito em vaga/topico");
+    });
+  });
+  
+  client.on("error", (err)=>{
+    console.error("Erro MQTT:", err);
+  });
+
+  // Controle vagas
+  let bloqueado1=false, bloqueado2=false;
+  let valor1="livre", valor2="livre"; // Estados atuais das vagas
+  const statusEl1=document.getElementById("s1");
+  const statusEl2=document.getElementById("s2");
+  const btnBloq1=document.getElementById("btnBloq1");
+  const btnDesbloq1=document.getElementById("btnDesbloq1");
+  const btnBloq2=document.getElementById("btnBloq2");
+  const btnDesbloq2=document.getElementById("btnDesbloq2");
+
+  let totalAcessos=0;
+  let contVaga1=0, contVaga2=0;
+
+  // Históricos para gráficos
+  let historicoAcessos = [];
+
+  function atualizarBotoes(){
+    btnBloq1.className=bloqueado1?"btn disabled":"btn bloquear";
+    btnDesbloq1.className=!bloqueado1?"btn disabled":"btn desbloquear";
+    btnBloq2.className=bloqueado2?"btn disabled":"btn bloquear";
+    btnDesbloq2.className=!bloqueado2?"btn disabled":"btn desbloquear";
+  }
+
+  client.on("message",(topic,msg)=>{
+    msg=msg.toString();
+    console.log("📨 MQTT recebido:");
+    console.log("   Tópico:", topic);
+    console.log("   Mensagem:", msg);
+    
+    if(topic=="estacionamento/acessos"){
+      totalAcessos=parseInt(msg);
+      console.log("✅ Acessos atualizado para:", totalAcessos);
+      document.getElementById("acessos").textContent=totalAcessos;
+      adicionarAcesso();
+    }
+    
+    if(topic=="vaga/topico"){
+      // Formato: "vaga1:ocupada" ou "vaga2:livre" ou "vaga1:bloqueada"
+      const partes = msg.split(":");
+      console.log("   Split:", partes);
+      
+      if(partes.length !== 2) {
+        console.error("❌ Formato inválido, esperado 'vaga:estado'");
+        return;
+      }
+      
+      const vaga = partes[0];  // "vaga1" ou "vaga2"
+      const estado = partes[1]; // "ocupada", "livre" ou "bloqueada"
+      
+      console.log("   Vaga:", vaga, "| Estado:", estado);
+      
+      let el = vaga==="vaga1" ? statusEl1 : statusEl2;
+      let bloqueado = vaga==="vaga1" ? bloqueado1 : bloqueado2;
+      let estadoAnterior = vaga==="vaga1" ? valor1 : valor2;
+
+      console.log("   Estado anterior:", estadoAnterior, "| Bloqueado:", bloqueado);
+
+      // Atualiza estado da vaga
+      if(vaga==="vaga1") {
+        valor1 = estado === "bloqueada" ? valor1 : estado;
+        console.log("   Valor1 agora:", valor1);
+      }
+      if(vaga==="vaga2") {
+        valor2 = estado === "bloqueada" ? valor2 : estado;
+        console.log("   Valor2 agora:", valor2);
+      }
+
+      // Mostra status correto (prioridade para bloqueio local)
+      if(bloqueado){
+        el.textContent="bloqueada";
+        el.className="status status-bloqueada";
+        console.log("   ⚠️ Exibindo como BLOQUEADA (bloqueio local ativo)");
+      } else if(estado==="ocupada" || estado==="bloqueada"){
+        el.textContent="ocupada";
+        el.className="status status-ocupada";
+        console.log("   🔴 Exibindo como OCUPADA");
+        
+        // Incrementa contador apenas quando muda de livre para ocupada
+        if(estadoAnterior!=="ocupada" && estado!=="bloqueada"){
+          if(vaga==="vaga1") {
+            contVaga1++;
+            console.log("   📊 ContVaga1:", contVaga1);
+          }
+          if(vaga==="vaga2") {
+            contVaga2++;
+            console.log("   📊 ContVaga2:", contVaga2);
+          }
+          atualizarGraficoVagas();
+        }
+      } else {
+        el.textContent="livre";
+        el.className="status status-livre";
+        console.log("   🟢 Exibindo como LIVRE");
+      }
+
+      atualizarBotoes();
+      atualizarResumo();
+      console.log("---");
+    }
+  });
+
+  function bloquear(n){
+    client.publish(`estacionamento/vaga${n}/bloqueio`,"true");
+    if(n===1) bloqueado1=true;
+    if(n===2) bloqueado2=true;
+    atualizarBotoes();
+    atualizarResumo();
+  }
+  function desbloquear(n){
+    client.publish(`estacionamento/vaga${n}/bloqueio`,"false");
+    if(n===1) bloqueado1=false;
+    if(n===2) bloqueado2=false;
+    atualizarBotoes();
+    atualizarResumo();
+  }
+
+  
+
+  // GRÁFICO COMPARATIVO VAGAS
+  const ctx2=document.getElementById("graficoVagas").getContext("2d");
+  const dadosVagas={
+    labels:["Vaga 1","Vaga 2"],
+    datasets:[{label:"Uso",data:[0,0],backgroundColor:["#1976d2","#fbc02d"]}]
+  };
+  const graficoVagas=new Chart(ctx2,{type:"bar",data:dadosVagas,options:{responsive:true,scales:{y:{beginAtZero:true}}}});
+  function atualizarGraficoVagas(){
+    dadosVagas.datasets[0].data=[contVaga1,contVaga2];
+    graficoVagas.update();
+  }
+
+  // GRÁFICO DE ACESSOS
+  const ctx = document.getElementById("graficoAcessos").getContext("2d");
+  const dadosAcessos = { labels:[], datasets:[{label:"Acessos",data:[], borderColor:"#1976d2", backgroundColor:"#90caf9", fill:true}] };
+  const graficoAcessos = new Chart(ctx, {type:"bar", data:dadosAcessos, options:{responsive:true,scales:{y:{beginAtZero:true}}}});
+
+  // GRÁFICO DE OCUPAÇÃO PERCENTUAL (PIZZA)
+  const ctxOcupacao = document.getElementById("graficoOcupacao").getContext("2d");
+  const dadosOcupacao = {
+    labels:["Livre","Ocupada","Bloqueada"],
+    datasets:[{
+      label:"Ocupação",
+      data:[2,0,0],
+      backgroundColor:["#388e3c","#d32f2f","#fbc02d"]
+    }]
+  };
+  const graficoOcupacao = new Chart(ctxOcupacao,{
+    type:"doughnut",
+    data:dadosOcupacao,
+    options:{responsive:true,plugins:{legend:{position:'bottom'}}}
+  });
+
+  // Atualiza resumo e gráfico de ocupação
+  function atualizarResumo(){
+    let livres = 0;
+    let ocupadas = 0;
+    let bloqueadas = 0;
+
+    // Vaga 1
+    if(bloqueado1) {
+      bloqueadas++;
+    } else if(valor1==="ocupada") {
+      ocupadas++;
+    } else {
+      livres++;
+    }
+
+    // Vaga 2
+    if(bloqueado2) {
+      bloqueadas++;
+    } else if(valor2==="ocupada") {
+      ocupadas++;
+    } else {
+      livres++;
+    }
+
+    document.getElementById("livres").textContent = livres;
+    document.getElementById("ocupadas").textContent = ocupadas;
+    
+    // Atualiza gráfico de pizza
+    dadosOcupacao.datasets[0].data = [livres, ocupadas, bloqueadas];
+    graficoOcupacao.update();
+  }
+
+  // Inicializa resumo
+  atualizarResumo();
+
+  function adicionarAcesso(){
+    const now = new Date();
+    historicoAcessos.push(now);
+    atualizarGraficoAcessos();
+  }
+
+  function atualizarGraficoAcessos(){
+    const filtro = document.getElementById("filtroTempo").value;
+    let labels=[], counts=[];
+    const now=new Date();
+
+    if(filtro==="dia"){ // Últimas 24h, por hora
+      for(let h=0; h<24; h++){
+        labels.push(h+":00");
+        counts.push(historicoAcessos.filter(d=>d.getHours()===h && sameDay(d,now)).length);
+      }
+    } else if(filtro==="semana"){ // Dias da semana atual
+      const dias=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+      for(let i=0;i<7;i++){
+        labels.push(dias[i]);
+        counts.push(historicoAcessos.filter(d=>d.getDay()===i && sameWeek(d,now)).length);
+      }
+    } else if(filtro==="mes"){ // Dias do mês atual
+      const diasDoMes = new Date(now.getFullYear(), now.getMonth()+1,0).getDate();
+      for(let d=1; d<=diasDoMes; d++){
+        labels.push(d.toString());
+        counts.push(historicoAcessos.filter(x=>x.getDate()===d && x.getMonth()===now.getMonth() && x.getFullYear()===now.getFullYear()).length);
+      }
+    }
+
+    dadosAcessos.labels=labels;
+    dadosAcessos.datasets[0].data=counts;
+    graficoAcessos.update();
+  }
+
+  function sameDay(d1,d2){
+    return d1.getDate()===d2.getDate() && d1.getMonth()===d2.getMonth() && d1.getFullYear()===d2.getFullYear();
+  }
+  function sameWeek(d1,d2){
+    const onejan=new Date(d2.getFullYear(),0,1);
+    const weekNum = Math.ceil((((d2-onejan)/86400000)+onejan.getDay()+1)/7);
+    const weekNum2= Math.ceil((((d1-onejan)/86400000)+onejan.getDay()+1)/7);
+    return weekNum===weekNum2;
+  }
+
+</script>
+</body>
+</html>
