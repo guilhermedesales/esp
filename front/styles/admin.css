@@ -1,0 +1,236 @@
+* { 
+  box-sizing: border-box; 
+}
+
+body { 
+  margin:0; 
+  font-family: Arial, sans-serif; 
+  background:#f5f5f5; 
+  color:#222; 
+}
+
+header { 
+  padding:20px; 
+  background:#1976d2; 
+  color:white; 
+  text-align:center; 
+  font-size:28px; 
+  font-weight:bold; 
+}
+
+.container { 
+  max-width:1400px; 
+  margin:auto; 
+  padding:20px; 
+}
+
+.card { 
+  background:#fff; 
+  padding:20px; 
+  border-radius:10px; 
+  margin-bottom:20px; 
+  box-shadow:0 2px 8px rgba(0,0,0,0.1); 
+}
+
+.card h2 { 
+  margin-top:0; 
+  color:#1976d2; 
+  font-size:20px; 
+}
+
+.vaga-status { 
+  font-size:18px; 
+  margin-bottom:8px; 
+}
+
+.status-livre { 
+  color:#388e3c; 
+  font-weight:bold; 
+}
+
+.status-ocupada { 
+  color:#d32f2f; 
+  font-weight:bold; 
+}
+
+.status-bloqueada { 
+  color:#fbc02d; 
+  font-weight:bold; 
+}
+
+.btn { 
+  padding:8px 14px; 
+  border:none; 
+  border-radius:6px; 
+  margin-right:8px; 
+  cursor:pointer; 
+  font-size:14px; 
+  transition:.2s; 
+}
+
+.btn:hover { 
+  opacity:.8; 
+}
+
+.bloquear { 
+  background:#d32f2f; 
+  color:white; 
+}
+
+.desbloquear { 
+  background:#388e3c; 
+  color:white; 
+}
+
+.btn.disabled { 
+  background:#ccc; 
+  cursor:not-allowed; 
+}
+
+canvas { 
+  margin-top:10px; 
+  max-height:300px; 
+}
+
+.filtro { 
+  margin-bottom:15px; 
+}
+
+.filtro select { 
+  padding:6px 10px; 
+  font-size:14px; 
+}
+
+.grid-2 { 
+  display:grid; 
+  grid-template-columns:1fr 1fr; 
+  gap:20px; 
+}
+
+.grid-3 { 
+  display:grid; 
+  grid-template-columns:repeat(3, 1fr); 
+  gap:20px; 
+}
+
+.card-small { 
+  padding:15px; 
+}
+
+.stat-number { 
+  font-size:32px; 
+  font-weight:bold; 
+  color:#1976d2; 
+  margin:10px 0; 
+}
+
+.lcd-input-container { 
+  display:flex; 
+  gap:10px; 
+  align-items:center; 
+  flex-wrap:wrap; 
+}
+
+/* Responsividade Mobile */
+@media(max-width:900px){ 
+  .grid-2, .grid-3 { 
+    grid-template-columns:1fr;
+    gap:15px;
+  }
+  header { 
+    font-size:20px; 
+    padding:15px 10px; 
+  }
+  .container { 
+    padding:15px 10px; 
+  }
+  .card { 
+    padding:15px; 
+    margin-bottom:15px;
+  }
+  .card h2 { 
+    font-size:17px;
+    margin-bottom:12px;
+  }
+  .stat-number { 
+    font-size:26px; 
+  }
+  .card-small p {
+    font-size:13px;
+  }
+  canvas { 
+    max-height:220px; 
+  }
+  .btn { 
+    padding:8px 12px; 
+    font-size:13px;
+    display:inline-block;
+    margin-bottom:5px;
+  }
+  .vaga-status { 
+    font-size:16px;
+    margin-bottom:10px;
+  }
+  .filtro {
+    margin-bottom:12px;
+  }
+  .filtro label, .filtro select {
+    font-size:13px;
+  }
+  .card > div {
+    margin-bottom:15px;
+    padding-bottom:15px;
+    border-bottom:1px solid #eee;
+  }
+  .card > div:last-child {
+    border-bottom:none;
+    padding-bottom:0;
+    margin-bottom:0;
+  }
+}
+
+@media(max-width:500px){
+  header {
+    font-size:18px;
+    padding:12px 10px;
+  }
+  .stat-number { 
+    font-size:24px; 
+  }
+  .card-small { 
+    padding:12px; 
+  }
+  .card {
+    padding:12px;
+  }
+  .card h2 {
+    font-size:16px;
+  }
+  .btn {
+    padding:6px 10px;
+    font-size:12px;
+    width:48%;
+    margin-right:2%;
+  }
+  .btn:nth-child(even) {
+    margin-right:0;
+  }
+  .vaga-status {
+    font-size:15px;
+  }
+  canvas {
+    max-height:200px;
+  }
+  .lcd-input-container {
+    flex-direction:column;
+  }
+  .lcd-input-container input {
+    font-size:13px !important;
+    padding:8px 10px !important;
+    width:100% !important;
+  }
+  .lcd-input-container button {
+    width:100%;
+    margin-right:0;
+  }
+}

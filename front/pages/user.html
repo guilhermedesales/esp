@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Estacionamento - Mobile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../styles/user.css">
+</head>
+<body>
+  <button class="theme-toggle" id="theme-toggle" title="Alternar tema">🌙</button>
+  
+  <div class="container">
+    <div id="status-badge" class="status-badge offline">Conectando...</div>
+    
+    <h1>🅿️ Estacionamento</h1>
+    
+    <div id="total">
+      <div style="font-size:16px; color:#666; margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">Vagas Livres</div>
+      <span class="total-number">0</span>
+      <div style="font-size:14px; color:#999; margin-top:8px;">de <span id="total-vagas">0</span> disponíveis</div>
+    </div>
+
+    <div id="vagas-container" class="vagas-container">
+      <!-- Vagas serão criadas dinamicamente -->
+    </div>
+
+    <!-- Alerta quando lotado -->
+    <div id="alerta-lotado" style="display:none; margin-top:20px; padding:15px; background:#fff3cd; border-left:4px solid #ffc107; border-radius:8px; text-align:left; transition:all 0.3s ease;">
+      <div style="font-size:14px; color:#856404; font-weight:bold; margin-bottom:5px;">⚠️ Estacionamento Lotado</div>
+      <div style="font-size:12px; color:#856404;" id="tempo-espera">Tempo médio de espera: calculando...</div>
+    </div>
+
+    <!-- Informações Práticas -->
+    <div class="info-section" style="margin-top:25px; padding:20px; background:#f8f9fa; border-radius:12px; text-align:left; transition:all 0.3s ease;">
+      <div style="font-size:14px; font-weight:bold; color:#333; margin-bottom:12px; text-align:center;">ℹ️ Informações</div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:13px;">
+        <div class="info-card" style="padding:10px; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition:all 0.3s ease;">
+          <div class="info-label" style="color:#999; font-size:11px; margin-bottom:3px;">💰 Valor</div>
+          <div style="color:#333; font-weight:600;">R$ 5,00/hora</div>
+        </div>
+        
+        <div class="info-card" style="padding:10px; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); transition:all 0.3s ease;">
+          <div class="info-label" style="color:#999; font-size:11px; margin-bottom:3px;">🕐 Horário</div>
+          <div style="color:#333; font-weight:600;">24h</div>
+        </div>
+      </div>
+      
+      <div class="info-card" style="margin-top:10px; padding:10px; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.05); text-align:center; transition:all 0.3s ease;">
+        <div class="info-label" style="color:#999; font-size:11px; margin-bottom:3px;">⏱️ Tempo Médio de Permanência</div>
+        <div style="color:#667eea; font-weight:600; font-size:16px;" id="tempo-medio-user">--</div>
+      </div>
+    </div>
+
+    <div id="ultima-atualizacao" class="ultima-atualizacao">Aguardando dados...</div>
+  </div>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../scripts/user.js"></script>
+</body>
+</html>

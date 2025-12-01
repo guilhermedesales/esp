@@ -1,0 +1,250 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin: 0;
+  padding: 20px;
+  min-height: 100vh;
+  transition: background 0.3s ease;
+}
+
+body.dark-mode {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.container {
+  max-width: 500px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 20px;
+  padding: 30px 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode .container {
+  background: #0f3460;
+  color: #e0e0e0;
+}
+
+h1 {
+  font-size: 28px;
+  color: #333;
+  margin: 0 0 10px 0;
+  transition: color 0.3s ease;
+}
+
+body.dark-mode h1 {
+  color: #e0e0e0;
+}
+
+.theme-toggle {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.theme-toggle:hover {
+  transform: scale(1.1);
+  background: rgba(255,255,255,0.3);
+}
+
+.theme-toggle:active {
+  transform: scale(0.95);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-badge.online {
+  background: #4CAF50;
+  color: white;
+  animation: fadeIn 0.5s;
+}
+
+.status-badge.offline {
+  background: #999;
+  color: white;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+#total {
+  font-size: 20px;
+  margin-bottom: 30px;
+  font-weight: bold;
+  color: #333;
+  padding: 25px 20px;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%);
+  border-radius: 15px;
+  display: inline-block;
+  min-width: 250px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+body.dark-mode #total {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #e0e0e0;
+}
+
+.total-number {
+  font-size: 48px;
+  color: #4CAF50;
+  display: block;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.total-number.nenhuma {
+  color: #F44336;
+}
+
+.vagas-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.vaga {
+  font-size: 20px;
+  padding: 30px 20px;
+  border-radius: 15px;
+  width: 100%;
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  transform: scale(1);
+}
+
+.vaga.livre {
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGreen {
+  0%, 100% { box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3); }
+  50% { box-shadow: 0 6px 30px rgba(76, 175, 80, 0.5); }
+}
+
+.vaga::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.2);
+  transition: left 0.5s;
+}
+
+.vaga:hover::before {
+  left: 100%;
+}
+
+.vaga.livre { 
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+}
+
+.vaga.ocupada { 
+  background: linear-gradient(135deg, #F44336 0%, #d32f2f 100%);
+}
+
+.vaga.bloqueada { 
+  background: linear-gradient(135deg, #FFC107 0%, #ffa000 100%);
+  color: #333;
+}
+
+.vaga-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.vaga-label {
+  display: block;
+  font-size: 16px;
+  opacity: 0.95;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.vaga-estado {
+  font-size: 18px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ultima-atualizacao {
+  margin-top: 25px;
+  font-size: 11px;
+  color: #999;
+  opacity: 0.8;
+}
+
+body.dark-mode #alerta-lotado {
+  background: #533c1e !important;
+  border-left-color: #ffa000 !important;
+}
+
+body.dark-mode .info-section {
+  background: #16213e !important;
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .info-section > div {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .info-card {
+  background: #0f3460 !important;
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .info-card,
+body.dark-mode .info-card * {
+  color: #e0e0e0 !important;
+}
+
+body.dark-mode .info-label {
+  color: #cfcfcf !important;
+}
+
+@media (min-width: 500px){
+  .vagas-container {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .vaga {
+    width: 48%;
+  }
+}

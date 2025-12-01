@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Estacionamento</title>
+  <link rel="stylesheet" href="../styles/admin.css">
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<header>Painel Administrativo do Estacionamento</header>
+
+<div class="container">
+  <!-- Linha 1: Cards de Resumo -->
+  <div class="grid-3">
+    <div class="card card-small">
+      <h2>Total de Acessos (Hoje)</h2>
+      <div class="stat-number"><span id="acessos">0</span></div>
+      <p style="color:#666; margin:0;">entradas registradas</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Vagas Livres</h2>
+      <div class="stat-number" style="color:#388e3c;"><span id="livres">0</span></div>
+      <p style="color:#666; margin:0;">de 2 disponíveis</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Vagas Ocupadas</h2>
+      <div class="stat-number" style="color:#d32f2f;"><span id="ocupadas">0</span></div>
+      <p style="color:#666; margin:0;">de 2 vagas</p>
+    </div>
+  </div>
+
+  <!-- Linha 1.5: Métricas Adicionais -->
+  <div class="grid-3">
+    <div class="card card-small">
+      <h2>Taxa de Ocupação</h2>
+      <div class="stat-number" style="color:#ff9800;"><span id="taxaOcupacao">0</span>%</div>
+      <p style="color:#666; margin:0;">vagas ocupadas agora</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Tempo Médio</h2>
+      <div class="stat-number" style="color:#9c27b0; font-size:24px;"><span id="tempoMedio">--</span></div>
+      <p style="color:#666; margin:0;">permanência por vaga</p>
+    </div>
+
+    <div class="card card-small">
+      <h2>Horário de Pico</h2>
+      <div class="stat-number" style="color:#f44336; font-size:24px;"><span id="horarioPico">--</span></div>
+      <p style="color:#666; margin:0;">maior movimento</p>
+    </div>
+  </div>
+
+  <!-- Linha 2: Status e Gráfico Pizza -->
+  <div class="grid-2">
+    <!-- Status das Vagas -->
+    <div class="card">
+      <h2>Status das Vagas</h2>
+      <div>
+        <p class="vaga-status">Vaga 1 — <span id="s1" class="status">?</span></p>
+        <button id="btnBloq1" class="btn bloquear" onclick="bloquear(1)">Bloquear</button>
+        <button id="btnDesbloq1" class="btn desbloquear" onclick="desbloquear(1)">Desbloquear</button>
+      </div>
+      <div style="margin-top:10px;">
+        <p class="vaga-status">Vaga 2 — <span id="s2" class="status">?</span></p>
+        <button id="btnBloq2" class="btn bloquear" onclick="bloquear(2)">Bloquear</button>
+        <button id="btnDesbloq2" class="btn desbloquear" onclick="desbloquear(2)">Desbloquear</button>
+      </div>
+    </div>
+
+    <!-- Gráfico de ocupação percentual -->
+    <div class="card">
+      <h2>Ocupação Percentual</h2>
+      <canvas id="graficoOcupacao"></canvas>
+    </div>
+  </div>
+
+  <!-- Linha 3: Gráfico Comparativo Vagas -->
+  <div class="card">
+    <h2>Comparativo de Uso das Vagas</h2>
+    <canvas id="graficoVagas"></canvas>
+  </div>
+
+  <!-- Linha 4: Gráfico de Acessos (largura completa) -->
+  <div class="card">
+    <h2>Acessos ao Longo do Tempo</h2>
+    <div class="filtro">
+      <label for="filtroTempo">Filtrar por:</label>
+      <select id="filtroTempo" onchange="atualizarGraficoAcessos()">
+        <option value="dia" selected>Dia</option>
+        <option value="semana">Semana</option>
+        <option value="mes">Mês</option>
+      </select>
+    </div>
+    <canvas id="graficoAcessos"></canvas>
+  </div>
+
+  <!-- Linha 5: Grid 2 colunas - Alertas e Estatísticas -->
+  <div class="grid-2">
+    <!-- Log de Eventos Recentes -->
+    <div class="card">
+      <h2>📋 Log de Eventos Recentes</h2>
+      <div id="logEventos" style="max-height:250px; overflow-y:auto; font-size:13px;">
+        <div style="text-align:center; color:#999; padding:20px;">Aguardando eventos...</div>
+      </div>
+    </div>
+
+    <!-- Status do Sistema -->
+    <div class="card">
+      <h2>🔧 Status do Sistema</h2>
+      <div style="padding:10px 0;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>Conexão MQTT:</strong></span>
+          <span id="statusMQTT" style="color:#999;">●</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>Banco de Dados:</strong></span>
+          <span id="statusDB" style="color:#999;">●</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>Última Atualização:</strong></span>
+          <span id="ultimaAtt" style="font-size:12px; color:#666;">--</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; padding:8px; background:#f9f9f9; border-radius:5px;">
+          <span><strong>ESP32 Status:</strong></span>
+          <span id="esp32Status" style="font-size:12px; font-weight:bold;">--</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edição LCD -->
+  <div class="card">
+    <h2>📟 Editar Mensagem do LCD</h2>
+    <div class="lcd-input-container">
+      <input type="text" id="lcdInput" placeholder="Digite o texto para exibir no LCD" maxlength="50" style="padding:8px 12px; font-size:14px; flex:1;">
+      <button class="btn desbloquear" onclick="enviarLCD()">Enviar para LCD</button>
+    </div>
+    <p style="font-size:12px; color:#999; margin:10px 0 0 0;">💡 Dica: Máximo 50 caracteres por mensagem</p>
+  </div>
+
+</div>
+
+<script src="../scripts/admin.js"></script>
+</body>
+</html>
