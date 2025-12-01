@@ -818,3 +818,179 @@ setInterval(() => {
   atualizarUltimaAtualizacao();
   atualizarStatusESP32();
 }, 10000);
+
+// ========================================
+// SISTEMA QR CODE - PAGAMENTOS
+// ========================================
+const API_URL = 'http://127.0.0.1:3000';
+
+async function atualizarEstatisticasQR() {
+  try {
+    console.log('📊 Atualizando estatísticas QR...');
+    const res = await fetch(`${API_URL}/api/dashboard/stats`);
+    console.log('✅ Stats resposta:', res.status);
+    if (!res.ok) {
+      console.warn('⚠️ Stats falhou:', res.status, res.statusText);
+      return;
+    }
+    const data = await res.json();
+    console.log('📊 Dados recebidos:', data);
+    
+    const e1 = document.getElementById('entradasHoje');
+    const e2 = document.getElementById('saidasHoje');
+    const e3 = document.getElementById('faturamentoHoje');
+    
+    if (e1) e1.textContent = data.entradas_hoje || 0;
+    if (e2) e2.textContent = data.saidas_hoje || 0;
+    if (e3) e3.textContent = `R$ ${(data.faturamento_hoje || 0).toFixed(2)}`;
+    
+    console.log('✅ Stats atualizado na tela');
+  } catch (err) {
+    console.error('❌ Erro stats QR:', err);
+    if (err.name === 'TypeError' && err.message.includes('Failed to fetch')) {
+      console.error('💡 Dica: Backend pode estar offline ou CORS bloqueado');
+    }
+  }
+}
+
+async function carregarPrecosQR() {
+  try {
+    const res = await fetch(`${API_URL}/api/config/pricing`);
+    if (!res.ok) return;
+    const cfg = await res.json();
+    
+    const t = document.getElementById('tipoCobranca');
+    const v = document.getElementById('valorUnidade');
+    const min = document.getElementById('valorMinimo');
+    const max = document.getElementById('valorMaximo');
+    
+    if (t) t.value = cfg.tipo_cobranca;
+    if (v) v.value = parseFloat(cfg.valor_unidade);
+    if (min) min.value = parseFloat(cfg.valor_minimo);
+    if (max) max.value = parseFloat(cfg.valor_maximo || 0);
+  } catch (err) {
+    console.error('Erro preços QR:', err);
+  }
+}
+
+async function salvarPrecosQR() {
+  const cfg = {
+    tipo_cobranca: document.getElementById('tipoCobranca').value,
+    valor_unidade: parseFloat(document.getElementById('valorUnidade').value),
+    valor_minimo: parseFloat(document.getElementById('valorMinimo').value),
+    valor_maximo: parseFloat(document.getElementById('valorMaximo').value) || null
+  };
+  
+  try {
+    const res = await fetch(`${API_URL}/api/config/pricing`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg)
+    });
+    
+    if (res.ok) {
+      mostrarMsgQR('✅ Salvo!', 'success');
+      carregarPrecosQR();
+    } else {
+      mostrarMsgQR('❌ Erro ao salvar', 'error');
+    }
+  } catch (err) {
+    console.error('Erro salvar QR:', err);
+    mostrarMsgQR('❌ Erro de conexão', 'error');
+  }
+}
+
+function mostrarMsgQR(texto, tipo) {
+  const msg = document.getElementById('msgConfig');
+  if (!msg) return;
+  
+  msg.textContent = texto;
+  msg.style.display = 'block';
+  msg.style.background = tipo === 'success' ? '#d4edda' : '#f8d7da';
+  msg.style.color = tipo === 'success' ? '#155724' : '#721c24';
+  
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+async function carregarVeiculosQRAtivos() {
+  try {
+    const res = await fetch(`${API_URL}/api/vehicles/active`);
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    const lista = document.getElementById('listaVeiculosQR');
+    if (!lista) return;
+    
+    if (!data.veiculos || data.veiculos.length === 0) {
+      lista.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Nenhum veículo</div>';
+      return;
+    }
+    
+    lista.innerHTML = data.veiculos.map(v => {
+      const val = v.valor_atual || v.valor_calculado || 0;
+      return `
+        <div style="padding:12px; background:#f8f9fa; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between;">
+          <div>
+            <strong>${v.qr_code}</strong>
+            <div style="font-size:12px; color:#666;">${v.tempo_formatado || '--'}</div>
+          </div>
+          <strong style="color:#667eea;">R$ ${parseFloat(val).toFixed(2)}</strong>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro veículos QR:', err);
+  }
+}
+
+async function carregarHistoricoQR() {
+  try {
+    const res = await fetch(`${API_URL}/api/vehicles/all`);
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    const tb = document.getElementById('historicoQRTabela');
+    if (!tb) return;
+    
+    if (!data.veiculos || data.veiculos.length === 0) {
+      tb.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center; color:#999;">Sem registros</td></tr>';
+      return;
+    }
+    
+    const badges = {
+      ativo: '🟢 Ativo',
+      aguardando_pagamento: '💳 Aguardando',
+      pago: '✅ Pago'
+    };
+    
+    tb.innerHTML = data.veiculos.map(v => {
+      const val = v.valor_calculado || v.valor_atual_calc || 0;
+      return `
+        <tr>
+          <td style="padding:12px;"><strong>${v.qr_code}</strong></td>
+          <td style="padding:12px;">${new Date(v.entrada).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</td>
+          <td style="padding:12px;">${v.saida ? new Date(v.saida).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '--'}</td>
+          <td style="padding:12px;">${v.tempo_formatado || '--'}</td>
+          <td style="padding:12px;"><strong>R$ ${parseFloat(val).toFixed(2)}</strong></td>
+          <td style="padding:12px;">${badges[v.status] || v.status}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Erro histórico QR:', err);
+  }
+}
+
+function atualizarTudoQR() {
+  atualizarEstatisticasQR();
+  carregarVeiculosQRAtivos();
+  carregarHistoricoQR();
+}
+
+// Inicializar sistema QR (se existir no HTML)
+if (document.getElementById('tipoCobranca')) {
+  console.log('✅ Módulo QR Code detectado');
+  carregarPrecosQR();
+  atualizarTudoQR();
+  setInterval(atualizarTudoQR, 5000);
+}

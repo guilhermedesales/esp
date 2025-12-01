@@ -1,0 +1,106 @@
+name: QR Detection CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-qr-detection:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libzbar0 libopencv-dev python3-opencv
+    
+    - name: Install Python dependencies
+      run: |
+        cd python
+        pip install -r requirements.txt
+        pip install qrcode[pil]
+    
+    - name: Generate test QR code
+      run: |
+        python3 -c "
+        import qrcode
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data('TEST-QR-123')
+        qr.make(fit=True)
+        img = qr.make_image(fill_color='black', back_color='white')
+        img.save('test_qr.png')
+        print('✅ QR code de teste gerado: test_qr.png')
+        "
+    
+    - name: Test QR detection (without API)
+      run: |
+        python3 -c "
+        import cv2
+        import sys
+        sys.path.append('python')
+        from detect_qr import detect_qr_codes
+        
+        # Ler imagem
+        img = cv2.imread('test_qr.png')
+        if img is None:
+            print('❌ Erro ao ler imagem de teste')
+            sys.exit(1)
+        
+        # Detectar QR codes
+        qr_codes = detect_qr_codes(img)
+        
+        if len(qr_codes) == 0:
+            print('❌ Nenhum QR code detectado')
+            sys.exit(1)
+        
+        print(f'✅ {len(qr_codes)} QR code(s) detectado(s)')
+        for qr in qr_codes:
+            print(f'   Conteúdo: {qr[\"data\"]}')
+            if qr['data'] == 'TEST-QR-123':
+                print('✅ Conteúdo correto!')
+            else:
+                print('❌ Conteúdo incorreto')
+                sys.exit(1)
+        
+        print('✅ Teste de detecção passou!')
+        "
+    
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-qr-image
+        path: test_qr.png
+
+  lint-backend:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        cd backend
+        npm install
+    
+    - name: Check syntax
+      run: |
+        cd backend
+        node -c server.js
+        echo "✅ Sintaxe do servidor validada"

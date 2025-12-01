@@ -1,0 +1,564 @@
+// ========================================
+// CONFIGURAÇÕES MQTT E API
+// ========================================
+const API_URL = 'http://localhost:3000';
+
+// Configuração MQTT
+const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+
+// Estado das vagas
+let vagas = {
+  vaga1: 'livre',
+  vaga2: 'livre'
+};
+
+// Dados para gráficos
+let dadosGraficos = {
+  acessos: [],
+  ocupacao: { livre: 0, ocupado: 0, bloqueado: 0 },
+  historico: []
+};
+
+// Gráficos
+let graficoOcupacao = null;
+let graficoComparativo = null;
+let graficoAcessos = null;
+
+// Atualizar estatísticas
+async function atualizarEstatisticas() {
+  try {
+    const response = await fetch(`${API_URL}/api/dashboard/stats`);
+    const data = await response.json();
+    
+    document.getElementById('entradasHoje').textContent = data.entradas_hoje || 0;
+    document.getElementById('saidasHoje').textContent = data.saidas_hoje || 0;
+    document.getElementById('faturamentoHoje').textContent = (data.faturamento_hoje || 0).toFixed(2);
+  } catch (error) {
+    console.error('Erro ao carregar estatísticas:', error);
+  }
+}
+
+// Carregar configuração de preços
+async function carregarPrecos() {
+  try {
+    const response = await fetch(`${API_URL}/api/config/pricing`);
+    const config = await response.json();
+    
+    document.getElementById('tipoCobranca').value = config.tipo_cobranca;
+    document.getElementById('valorUnidade').value = parseFloat(config.valor_unidade);
+    document.getElementById('valorMinimo').value = parseFloat(config.valor_minimo);
+    document.getElementById('valorMaximo').value = parseFloat(config.valor_maximo || 0);
+  } catch (error) {
+    console.error('Erro ao carregar preços:', error);
+  }
+}
+
+// Salvar configuração de preços
+async function salvarPrecos() {
+  const config = {
+    tipo_cobranca: document.getElementById('tipoCobranca').value,
+    valor_unidade: parseFloat(document.getElementById('valorUnidade').value),
+    valor_minimo: parseFloat(document.getElementById('valorMinimo').value),
+    valor_maximo: parseFloat(document.getElementById('valorMaximo').value) || null
+  };
+  
+  try {
+    const response = await fetch(`${API_URL}/api/config/pricing`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    
+    if (response.ok) {
+      mostrarMensagem('✅ Configuração salva com sucesso!', 'success');
+      await carregarPrecos();
+    } else {
+      mostrarMensagem('❌ Erro ao salvar configuração', 'error');
+    }
+  } catch (error) {
+    console.error('Erro ao salvar preços:', error);
+    mostrarMensagem('❌ Erro de conexão', 'error');
+  }
+}
+
+function mostrarMensagem(texto, tipo) {
+  const msgDiv = document.getElementById('msgConfig');
+  msgDiv.textContent = texto;
+  msgDiv.style.display = 'block';
+  msgDiv.style.background = tipo === 'success' ? '#d4edda' : '#f8d7da';
+  msgDiv.style.color = tipo === 'success' ? '#155724' : '#721c24';
+  
+  setTimeout(() => {
+    msgDiv.style.display = 'none';
+  }, 3000);
+}
+
+// Carregar veículos ativos
+async function carregarVeiculosAtivos() {
+  try {
+    const response = await fetch(`${API_URL}/api/vehicles/active`);
+    const data = await response.json();
+    
+    const container = document.getElementById('veiculosAtivos');
+    
+    if (data.count === 0) {
+      container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Nenhum veículo no estacionamento</div>';
+      return;
+    }
+    
+    container.innerHTML = data.veiculos.map(v => `
+      <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:8px; background:#f9f9f9;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong style="font-size:18px;">🚗 ${v.qr_code}</strong>
+            <p style="margin:5px 0; color:#666;">Entrada: ${new Date(v.entrada).toLocaleString('pt-BR')}</p>
+            <p style="margin:5px 0; color:#666;">Tempo: ${v.tempo_formatado || '--'}</p>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:24px; font-weight:bold; color:#ff9800;">R$ ${(v.valor_atual || 0).toFixed(2)}</div>
+            <span style="color:#666; font-size:12px;">valor atual</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Erro ao carregar veículos ativos:', error);
+  }
+}
+
+// Carregar histórico completo
+async function carregarHistorico() {
+  try {
+    const response = await fetch(`${API_URL}/api/vehicles/all`);
+    const data = await response.json();
+    
+    const tbody = document.getElementById('historicoTabela');
+    
+    if (data.count === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center; color:#999;">Nenhum registro hoje</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = data.veiculos.map(v => {
+      const statusBadge = {
+        'ativo': '<span style="background:#4caf50; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">✅ Ativo</span>',
+        'aguardando_pagamento': '<span style="background:#ff9800; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">💳 Aguardando</span>',
+        'pago': '<span style="background:#2196f3; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">✔️ Pago</span>'
+      };
+      
+      return `
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:12px;"><strong>${v.qr_code}</strong></td>
+          <td style="padding:12px;">${new Date(v.entrada).toLocaleString('pt-BR')}</td>
+          <td style="padding:12px;">${v.saida ? new Date(v.saida).toLocaleString('pt-BR') : '--'}</td>
+          <td style="padding:12px;">${v.tempo_formatado || '--'}</td>
+          <td style="padding:12px;"><strong>R$ ${(v.valor_calculado || v.valor_atual_calc || 0).toFixed(2)}</strong></td>
+          <td style="padding:12px;">${statusBadge[v.status] || v.status}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('Erro ao carregar histórico:', error);
+  }
+}
+
+// Atualizar tudo periodicamente
+function atualizarTudo() {
+  atualizarEstatisticas();
+  carregarVeiculosAtivos();
+  carregarHistorico();
+}
+
+// ========================================
+// FUNÇÕES DO SISTEMA QR CODE
+// ========================================
+
+// Carregar configuração de preços QR
+async function carregarPrecosQR() {
+  try {
+    const response = await fetch(`${API_URL}/api/config/pricing`);
+    const config = await response.json();
+    
+    document.getElementById('tipoCobranca').value = config.tipo_cobranca;
+    document.getElementById('valorUnidade').value = parseFloat(config.valor_unidade);
+    document.getElementById('valorMinimo').value = parseFloat(config.valor_minimo);
+    document.getElementById('valorMaximo').value = parseFloat(config.valor_maximo || 0);
+  } catch (error) {
+    console.error('Erro ao carregar preços QR:', error);
+  }
+}
+
+// Salvar configuração de preços QR
+async function salvarPrecosQR() {
+  const config = {
+    tipo_cobranca: document.getElementById('tipoCobranca').value,
+    valor_unidade: parseFloat(document.getElementById('valorUnidade').value),
+    valor_minimo: parseFloat(document.getElementById('valorMinimo').value),
+    valor_maximo: parseFloat(document.getElementById('valorMaximo').value) || null
+  };
+  
+  try {
+    const response = await fetch(`${API_URL}/api/config/pricing`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    
+    if (response.ok) {
+      mostrarMensagemQR('✅ Configuração salva com sucesso!', 'success');
+      await carregarPrecosQR();
+    } else {
+      mostrarMensagemQR('❌ Erro ao salvar configuração', 'error');
+    }
+  } catch (error) {
+    console.error('Erro ao salvar preços QR:', error);
+    mostrarMensagemQR('❌ Erro de conexão', 'error');
+  }
+}
+
+function mostrarMensagemQR(texto, tipo) {
+  const msgDiv = document.getElementById('msgConfigQR');
+  msgDiv.textContent = texto;
+  msgDiv.style.display = 'block';
+  msgDiv.style.background = tipo === 'success' ? '#d4edda' : '#f8d7da';
+  msgDiv.style.color = tipo === 'success' ? '#155724' : '#721c24';
+  
+  setTimeout(() => {
+    msgDiv.style.display = 'none';
+  }, 3000);
+}
+
+// Atualizar estatísticas QR
+async function atualizarEstatisticasQR() {
+  try {
+    const response = await fetch(`${API_URL}/api/dashboard/stats`);
+    const data = await response.json();
+    
+    document.getElementById('entradasQR').textContent = data.entradas_hoje || 0;
+    document.getElementById('saidasQR').textContent = data.saidas_hoje || 0;
+    document.getElementById('faturamentoQR').textContent = (data.faturamento_hoje || 0).toFixed(2);
+  } catch (error) {
+    console.error('Erro ao carregar estatísticas QR:', error);
+  }
+}
+
+// Carregar veículos QR ativos
+async function carregarVeiculosQRAtivos() {
+  try {
+    const response = await fetch(`${API_URL}/api/vehicles/active`);
+    const data = await response.json();
+    
+    const container = document.getElementById('veiculosQRAtivos');
+    
+    if (data.count === 0) {
+      container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Nenhum veículo QR no estacionamento</div>';
+      return;
+    }
+    
+    container.innerHTML = data.veiculos.map(v => `
+      <div style="border:1px solid #ddd; padding:15px; margin-bottom:10px; border-radius:8px; background:#f9f9f9;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong style="font-size:18px;">🚗 ${v.qr_code}</strong>
+            <p style="margin:5px 0; color:#666;">Entrada: ${new Date(v.entrada).toLocaleString('pt-BR')}</p>
+            <p style="margin:5px 0; color:#666;">Tempo: ${v.tempo_formatado || '--'}</p>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:24px; font-weight:bold; color:#ff9800;">R$ ${(v.valor_atual || 0).toFixed(2)}</div>
+            <span style="color:#666; font-size:12px;">valor atual</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Erro ao carregar veículos QR ativos:', error);
+  }
+}
+
+// Carregar histórico QR completo
+async function carregarHistoricoQR() {
+  try {
+    const response = await fetch(`${API_URL}/api/vehicles/all`);
+    const data = await response.json();
+    
+    const tbody = document.getElementById('historicoQRTabela');
+    
+    if (data.count === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:20px; text-align:center; color:#999;">Nenhum registro QR hoje</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = data.veiculos.map(v => {
+      const statusBadge = {
+        'ativo': '<span style="background:#4caf50; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">✅ Ativo</span>',
+        'aguardando_pagamento': '<span style="background:#ff9800; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">💳 Aguardando</span>',
+        'pago': '<span style="background:#2196f3; color:white; padding:4px 8px; border-radius:4px; font-size:12px;">✔️ Pago</span>'
+      };
+      
+      return `
+        <tr style="border-bottom:1px solid #eee;">
+          <td style="padding:12px;"><strong>${v.qr_code}</strong></td>
+          <td style="padding:12px;">${new Date(v.entrada).toLocaleString('pt-BR')}</td>
+          <td style="padding:12px;">${v.saida ? new Date(v.saida).toLocaleString('pt-BR') : '--'}</td>
+          <td style="padding:12px;">${v.tempo_formatado || '--'}</td>
+          <td style="padding:12px;"><strong>R$ ${(v.valor_calculado || v.valor_atual_calc || 0).toFixed(2)}</strong></td>
+          <td style="padding:12px;">${statusBadge[v.status] || v.status}</td>
+        </tr>
+      `;
+    }).join('');
+  } catch (error) {
+    console.error('Erro ao carregar histórico QR:', error);
+  }
+}
+
+// Atualizar tudo do sistema QR
+function atualizarTudoQR() {
+  atualizarEstatisticasQR();
+  carregarVeiculosQRAtivos();
+  carregarHistoricoQR();
+}
+
+// ========================================
+// SISTEMA MQTT (VAGAS ESP32)
+// ========================================
+
+// Conexão MQTT
+client.on('connect', () => {
+  console.log('✅ Conectado ao broker MQTT');
+  
+  client.subscribe('estacionamento/vaga1/status');
+  client.subscribe('estacionamento/vaga2/status');
+  client.subscribe('estacionamento/eventos');
+  
+  atualizarStatusSistema('mqtt', true);
+});
+
+client.on('error', (error) => {
+  console.error('❌ Erro MQTT:', error);
+  atualizarStatusSistema('mqtt', false);
+});
+
+client.on('message', (topic, message) => {
+  const msg = message.toString();
+  
+  if (topic.includes('vaga1/status')) {
+    vagas.vaga1 = msg;
+    atualizarVaga('vaga1', msg);
+  } else if (topic.includes('vaga2/status')) {
+    vagas.vaga2 = msg;
+    atualizarVaga('vaga2', msg);
+  } else if (topic === 'estacionamento/eventos') {
+    adicionarEvento(msg);
+  }
+  
+  atualizarMetricas();
+  atualizarGraficos();
+});
+
+// Atualizar status de uma vaga
+function atualizarVaga(vagaId, status) {
+  const vagaDiv = document.getElementById(vagaId);
+  if (!vagaDiv) return;
+  
+  const statusBadge = vagaDiv.querySelector('.status-badge');
+  const btnBloquear = vagaDiv.querySelector(`button[onclick*='bloquear']`);
+  const btnDesbloquear = vagaDiv.querySelector(`button[onclick*='desbloquear']`);
+  
+  statusBadge.className = 'status-badge';
+  
+  if (status === 'livre') {
+    statusBadge.textContent = '🟢 Livre';
+    statusBadge.classList.add('livre');
+    btnBloquear.disabled = false;
+    btnDesbloquear.disabled = true;
+  } else if (status === 'ocupada') {
+    statusBadge.textContent = '🔴 Ocupada';
+    statusBadge.classList.add('ocupada');
+    btnBloquear.disabled = true;
+    btnDesbloquear.disabled = true;
+  } else if (status === 'bloqueada') {
+    statusBadge.textContent = '⛔ Bloqueada';
+    statusBadge.classList.add('bloqueada');
+    btnBloquear.disabled = true;
+    btnDesbloquear.disabled = false;
+  }
+}
+
+// Bloquear vaga
+function bloquear(vaga) {
+  client.publish(`estacionamento/${vaga}/comando`, 'bloquear');
+  console.log(`🚫 Bloqueando ${vaga}`);
+}
+
+// Desbloquear vaga
+function desbloquear(vaga) {
+  client.publish(`estacionamento/${vaga}/comando`, 'desbloquear');
+  console.log(`✅ Desbloqueando ${vaga}`);
+}
+
+// Enviar texto para LCD
+function enviarLCD() {
+  const texto = document.getElementById('textoLCD').value;
+  if (texto.trim()) {
+    client.publish('estacionamento/lcd', texto);
+    document.getElementById('textoLCD').value = '';
+    alert('✅ Texto enviado para o LCD!');
+  }
+}
+
+// Atualizar métricas
+function atualizarMetricas() {
+  let livre = 0, ocupado = 0, bloqueado = 0;
+  
+  Object.values(vagas).forEach(status => {
+    if (status === 'livre') livre++;
+    else if (status === 'ocupada') ocupado++;
+    else if (status === 'bloqueada') bloqueado++;
+  });
+  
+  const total = livre + ocupado + bloqueado;
+  const taxaOcupacao = total > 0 ? ((ocupado / total) * 100).toFixed(0) : 0;
+  
+  document.getElementById('vagasLivres').textContent = livre;
+  document.getElementById('vagasOcupadas').textContent = ocupado;
+  document.getElementById('taxaOcupacao').textContent = taxaOcupacao;
+  
+  dadosGraficos.ocupacao = { livre, ocupado, bloqueado };
+}
+
+// Adicionar evento ao log
+function adicionarEvento(evento) {
+  const logDiv = document.getElementById('logEventos');
+  if (!logDiv) return;
+  
+  const p = document.createElement('p');
+  p.textContent = `[${new Date().toLocaleTimeString()}] ${evento}`;
+  
+  logDiv.insertBefore(p, logDiv.firstChild);
+  
+  if (logDiv.children.length > 20) {
+    logDiv.removeChild(logDiv.lastChild);
+  }
+  
+  dadosGraficos.historico.push({
+    timestamp: new Date(),
+    evento: evento
+  });
+}
+
+// Atualizar status do sistema
+function atualizarStatusSistema(sistema, online) {
+  const statusMap = {
+    'mqtt': 'statusMQTT',
+    'db': 'statusDB',
+    'esp': 'statusESP'
+  };
+  
+  const elementId = statusMap[sistema];
+  if (!document.getElementById(elementId)) return;
+  
+  const badge = document.getElementById(elementId);
+  if (online) {
+    badge.textContent = '🟢 Online';
+    badge.className = 'status-badge online';
+  } else {
+    badge.textContent = '🔴 Offline';
+    badge.className = 'status-badge offline';
+  }
+}
+
+// Criar gráficos
+function criarGraficos() {
+  // Gráfico de Ocupação (Pizza)
+  const ctxOcupacao = document.getElementById('graficoOcupacao');
+  if (ctxOcupacao) {
+    graficoOcupacao = new Chart(ctxOcupacao, {
+      type: 'doughnut',
+      data: {
+        labels: ['Livre', 'Ocupado', 'Bloqueado'],
+        datasets: [{
+          data: [0, 0, 0],
+          backgroundColor: ['#4caf50', '#f44336', '#ff9800']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+  
+  // Gráfico Comparativo (Barras)
+  const ctxComparativo = document.getElementById('graficoComparativo');
+  if (ctxComparativo) {
+    graficoComparativo = new Chart(ctxComparativo, {
+      type: 'bar',
+      data: {
+        labels: ['Vaga 1', 'Vaga 2'],
+        datasets: [{
+          label: 'Status',
+          data: [0, 0],
+          backgroundColor: ['#4caf50', '#4caf50']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            max: 3,
+            ticks: {
+              stepSize: 1,
+              callback: function(value) {
+                const labels = { 0: 'Livre', 1: 'Ocupado', 2: 'Bloqueado' };
+                return labels[value] || '';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+}
+
+// Atualizar gráficos
+function atualizarGraficos() {
+  if (graficoOcupacao) {
+    graficoOcupacao.data.datasets[0].data = [
+      dadosGraficos.ocupacao.livre,
+      dadosGraficos.ocupacao.ocupado,
+      dadosGraficos.ocupacao.bloqueado
+    ];
+    graficoOcupacao.update();
+  }
+  
+  if (graficoComparativo) {
+    const statusToValue = { 'livre': 0, 'ocupada': 1, 'bloqueada': 2 };
+    const colors = { 'livre': '#4caf50', 'ocupada': '#f44336', 'bloqueada': '#ff9800' };
+    
+    graficoComparativo.data.datasets[0].data = [
+      statusToValue[vagas.vaga1],
+      statusToValue[vagas.vaga2]
+    ];
+    graficoComparativo.data.datasets[0].backgroundColor = [
+      colors[vagas.vaga1],
+      colors[vagas.vaga2]
+    ];
+    graficoComparativo.update();
+  }
+}
+
+// Inicializar
+document.addEventListener('DOMContentLoaded', () => {
+  // Sistema MQTT (vagas ESP32)
+  criarGraficos();
+  atualizarMetricas();
+  
+  // Sistema QR Code
+  if (document.getElementById('tipoCobranca')) {
+    carregarPrecosQR();
+    atualizarTudoQR();
+    setInterval(atualizarTudoQR, 5000);
+  }
+});

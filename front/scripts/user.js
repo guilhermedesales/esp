@@ -338,3 +338,219 @@ themeToggle.addEventListener('click', () => {
     localStorage.setItem('theme', 'light');
   }
 });
+
+// ========================================
+// SISTEMA QR CODE - CONSULTA VEÍCULO
+// ========================================
+const API_URL = 'http://127.0.0.1:3000';
+let veiculoQRAtual = null;
+let intervalAtualizacaoQR = null;
+
+async function consultarQR() {
+  const input = document.getElementById('qrCodeInput');
+  if (!input) return;
+  
+  const qrCode = input.value.trim();
+  
+  if (!qrCode) {
+    mostrarMensagemConsultaQR('⚠️ Digite o código QR do veículo', 'warning');
+    return;
+  }
+  
+  console.log('🔍 Consultando veículo:', qrCode);
+  console.log('📡 URL da API:', `${API_URL}/api/vehicle/${qrCode}`);
+  
+  try {
+    const res = await fetch(`${API_URL}/api/vehicle/${qrCode}`);
+    console.log('✅ Resposta recebida:', res.status, res.statusText);
+    
+    if (!res.ok) {
+      if (res.status === 404) {
+        mostrarMensagemConsultaQR('❌ Veículo não encontrado', 'error');
+      } else {
+        mostrarMensagemConsultaQR(`❌ Erro ao consultar (${res.status})`, 'error');
+      }
+      return;
+    }
+    
+    const data = await res.json();
+    veiculoQRAtual = data.veiculo;
+    
+    document.getElementById('consulta-qr-section').style.display = 'none';
+    document.getElementById('resultado-qr-section').style.display = 'block';
+    
+    exibirVeiculoQR(veiculoQRAtual);
+    
+    if (veiculoQRAtual.status === 'ativo') {
+      intervalAtualizacaoQR = setInterval(atualizarVeiculoQR, 5000);
+    }
+    
+  } catch (err) {
+    console.error('❌ Erro QR completo:', err);
+    console.error('Tipo:', err.name);
+    console.error('Mensagem:', err.message);
+    
+    if (err.name === 'TypeError' && err.message.includes('Failed to fetch')) {
+      mostrarMensagemConsultaQR('❌ Backend offline ou CORS bloqueado. Verifique se o servidor está rodando em http://127.0.0.1:3000', 'error');
+    } else {
+      mostrarMensagemConsultaQR(`❌ Erro de conexão: ${err.message}`, 'error');
+    }
+  }
+}
+
+function exibirVeiculoQR(veiculo) {
+  const qrCode = document.getElementById('qrCodeResultado');
+  const tempo = document.getElementById('tempoVeiculoQR');
+  const entrada = document.getElementById('entradaVeiculoQR');
+  const valor = document.getElementById('valorVeiculoQR');
+  const status = document.getElementById('statusVeiculoQR');
+  const acoes = document.getElementById('acoesVeiculoQR');
+  
+  if (qrCode) qrCode.textContent = veiculo.qr_code;
+  if (tempo) tempo.textContent = veiculo.tempo_formatado || '--';
+  if (entrada) entrada.textContent = new Date(veiculo.entrada).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  
+  const val = veiculo.valor_atual || veiculo.valor_calculado || 0;
+  if (valor) valor.textContent = `R$ ${parseFloat(val).toFixed(2)}`;
+  
+  const badges = {
+    ativo: '🟢 No estacionamento',
+    aguardando_pagamento: '💳 Aguardando pagamento',
+    pago: '✅ Pagamento confirmado'
+  };
+  if (status) status.textContent = badges[veiculo.status] || veiculo.status;
+  
+  if (acoes) {
+    if (veiculo.status === 'ativo') {
+      acoes.innerHTML = `
+        <div style="background:#e8f5e9; padding:12px; border-radius:8px; text-align:center; font-size:13px;">
+          <p style="margin:0; color:#2e7d32;">✅ Seu veículo está no estacionamento</p>
+          <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Valor atualizado automaticamente</p>
+        </div>
+      `;
+    } else if (veiculo.status === 'aguardando_pagamento') {
+      acoes.innerHTML = `
+        <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:12px; font-size:13px;">
+          <p style="margin:0; color:#856404;">⚠️ Pagamento pendente</p>
+        </div>
+        <button onclick="mostrarPagamentoQR()" style="width:100%; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
+          💳 Pagar Agora
+        </button>
+      `;
+    } else if (veiculo.status === 'pago') {
+      acoes.innerHTML = `
+        <div style="background:#d4edda; padding:12px; border-radius:8px; text-align:center; font-size:13px;">
+          <p style="margin:0; color:#155724; font-weight:bold;">✅ Pagamento confirmado!</p>
+          <p style="margin:5px 0 0 0; font-size:12px; color:#155724;">Você já pode retirar seu veículo</p>
+        </div>
+      `;
+    }
+  }
+}
+
+async function atualizarVeiculoQR() {
+  if (!veiculoQRAtual || veiculoQRAtual.status !== 'ativo') {
+    clearInterval(intervalAtualizacaoQR);
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${API_URL}/api/vehicle/${veiculoQRAtual.qr_code}`);
+    if (res.ok) {
+      const data = await res.json();
+      veiculoQRAtual = data.veiculo;
+      exibirVeiculoQR(veiculoQRAtual);
+    }
+  } catch (err) {
+    console.error('Erro atualizar QR:', err);
+  }
+}
+
+function mostrarPagamentoQR() {
+  if (!veiculoQRAtual || !veiculoQRAtual.qr_pagamento) {
+    alert('QR Code de pagamento não disponível');
+    return;
+  }
+  
+  const img = document.getElementById('qrPagamentoImg');
+  const modal = document.getElementById('modalPagamentoQR');
+  
+  if (img) img.src = veiculoQRAtual.qr_pagamento;
+  if (modal) modal.style.display = 'flex';
+}
+
+function fecharModalQR() {
+  const modal = document.getElementById('modalPagamentoQR');
+  if (modal) modal.style.display = 'none';
+}
+
+async function confirmarPagamentoQR() {
+  if (!veiculoQRAtual) return;
+  
+  const val = veiculoQRAtual.valor_calculado || veiculoQRAtual.valor_atual || 0;
+  
+  try {
+    const res = await fetch(`${API_URL}/api/payment/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        veiculo_id: veiculoQRAtual.id,
+        valor_pago: parseFloat(val),
+        metodo: 'pix'
+      })
+    });
+    
+    if (res.ok) {
+      fecharModalQR();
+      
+      const resAtual = await fetch(`${API_URL}/api/vehicle/${veiculoQRAtual.qr_code}`);
+      if (resAtual.ok) {
+        const data = await resAtual.json();
+        veiculoQRAtual = data.veiculo;
+        exibirVeiculoQR(veiculoQRAtual);
+      }
+      
+      alert('✅ Pagamento confirmado!\nVocê já pode retirar seu veículo.');
+    } else {
+      alert('❌ Erro ao confirmar pagamento');
+    }
+  } catch (err) {
+    console.error('Erro pagamento QR:', err);
+    alert('❌ Erro de conexão');
+  }
+}
+
+function novaConsultaQR() {
+  clearInterval(intervalAtualizacaoQR);
+  veiculoQRAtual = null;
+  
+  document.getElementById('consulta-qr-section').style.display = 'block';
+  document.getElementById('resultado-qr-section').style.display = 'none';
+  document.getElementById('qrCodeInput').value = '';
+  document.getElementById('msgConsultaQR').style.display = 'none';
+}
+
+function mostrarMensagemConsultaQR(texto, tipo) {
+  const msg = document.getElementById('msgConsultaQR');
+  if (!msg) return;
+  
+  msg.textContent = texto;
+  msg.style.display = 'block';
+  
+  const cores = {
+    success: { bg: '#d4edda', color: '#155724' },
+    error: { bg: '#f8d7da', color: '#721c24' },
+    warning: { bg: '#fff3cd', color: '#856404' }
+  };
+  
+  msg.style.background = cores[tipo].bg;
+  msg.style.color = cores[tipo].color;
+  
+  setTimeout(() => msg.style.display = 'none', 3000);
+}
+
+// Fechar modal ao clicar fora
+window.onclick = (e) => {
+  const modal = document.getElementById('modalPagamentoQR');
+  if (e.target === modal) fecharModalQR();
+};

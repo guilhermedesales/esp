@@ -53,6 +53,82 @@
     </div>
 
     <div id="ultima-atualizacao" class="ultima-atualizacao">Aguardando dados...</div>
+
+    <!-- SISTEMA QR CODE - CONSULTA VEÍCULO -->
+    <div style="margin-top:30px; padding:20px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius:15px; box-shadow:0 10px 30px rgba(102,126,234,0.3);">
+      <h2 style="color:white; margin:0 0 15px 0; font-size:20px; text-align:center;">🚗 Consultar Meu Veículo</h2>
+      
+      <div id="consulta-qr-section">
+        <input type="text" id="qrCodeInput" placeholder="Digite o código QR (ex: ABC-1234)" 
+               style="width:100%; padding:12px; font-size:14px; border:2px solid #ddd; border-radius:8px; margin-bottom:12px; box-sizing:border-box;"
+               onkeypress="if(event.key==='Enter') consultarQR()">
+        
+        <button onclick="consultarQR()" style="width:100%; padding:12px; background:white; color:#667eea; border:none; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+          🔍 Consultar
+        </button>
+        
+        <div id="msgConsultaQR" style="margin-top:12px; padding:10px; border-radius:6px; display:none; font-size:13px;"></div>
+      </div>
+
+      <div id="resultado-qr-section" style="display:none;">
+        <div style="background:white; padding:15px; border-radius:10px; color:#333;">
+          <h3 style="margin:0 0 15px 0; color:#667eea; font-size:18px;">Informações do Veículo</h3>
+          
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+            <div style="padding:10px; background:#f8f9fa; border-radius:8px;">
+              <div style="font-size:11px; color:#999; margin-bottom:3px;">QR Code</div>
+              <div style="font-weight:bold; font-size:16px;" id="qrCodeResultado">--</div>
+            </div>
+            <div style="padding:10px; background:#f8f9fa; border-radius:8px;">
+              <div style="font-size:11px; color:#999; margin-bottom:3px;">Tempo</div>
+              <div style="font-weight:bold; font-size:16px; color:#ff9800;" id="tempoVeiculoQR">--</div>
+            </div>
+            <div style="padding:10px; background:#f8f9fa; border-radius:8px;">
+              <div style="font-size:11px; color:#999; margin-bottom:3px;">Entrada</div>
+              <div style="font-size:13px;" id="entradaVeiculoQR">--</div>
+            </div>
+            <div style="padding:10px; background:#f8f9fa; border-radius:8px;">
+              <div style="font-size:11px; color:#999; margin-bottom:3px;">Valor</div>
+              <div style="font-weight:bold; font-size:18px; color:#4caf50;" id="valorVeiculoQR">R$ 0,00</div>
+            </div>
+          </div>
+
+          <div style="padding:10px; background:#f0f4ff; border-radius:8px; margin-bottom:15px; text-align:center;">
+            <div style="font-size:11px; color:#999; margin-bottom:3px;">Status</div>
+            <div style="font-weight:bold; font-size:14px;" id="statusVeiculoQR">--</div>
+          </div>
+
+          <div id="acoesVeiculoQR"></div>
+
+          <button onclick="novaConsultaQR()" style="width:100%; padding:10px; background:#f8f9fa; color:#667eea; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; margin-top:10px;">
+            ← Nova Consulta
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Pagamento QR -->
+    <div id="modalPagamentoQR" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center;">
+      <div style="background:white; padding:25px; border-radius:15px; max-width:90%; width:400px; text-align:center;">
+        <h3 style="margin:0 0 20px 0; color:#333;">Pagamento PIX</h3>
+        
+        <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:15px;">
+          <img id="qrPagamentoImg" src="" alt="QR Code PIX" style="max-width:100%; height:auto; border-radius:8px;">
+        </div>
+        
+        <p style="font-size:13px; color:#666; margin:0 0 15px 0;">Escaneie o QR Code acima com seu app bancário</p>
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <button onclick="fecharModalQR()" style="padding:12px; background:#f44336; color:white; border:none; border-radius:8px; font-size:14px; cursor:pointer;">
+            ✕ Cancelar
+          </button>
+          <button onclick="confirmarPagamentoQR()" style="padding:12px; background:#4caf50; color:white; border:none; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
+            ✅ Já Paguei
+          </button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>

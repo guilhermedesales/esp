@@ -1,0 +1,22 @@
+# Dependências Python para Detecção de QR Code
+
+# Visão computacional e captura de vídeo
+opencv-python>=4.8.0
+
+# Decodificação de QR codes e códigos de barras
+pyzbar>=0.1.9
+
+# Requisições HTTP para comunicação com API
+requests>=2.31.0
+
+# Gerenciamento de variáveis de ambiente
+python-dotenv>=1.0.0
+
+# NumPy (compatível com Python 3.13)
+numpy>=1.26.0
+
+# Pillow para processamento de imagens (opcional, útil para testes)
+Pillow>=10.0.0
+
+# MQTT para comunicar com ESP32
+paho-mqtt>=1.6.1

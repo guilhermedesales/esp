@@ -144,6 +144,78 @@
     <p style="font-size:12px; color:#999; margin:10px 0 0 0;">💡 Dica: Máximo 50 caracteres por mensagem</p>
   </div>
 
+  <!-- SISTEMA QR CODE - PAGAMENTOS -->
+  <div class="card">
+    <h2>💳 Configuração de Preços (QR Code)</h2>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+      <div>
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Tipo de Cobrança:</label>
+        <select id="tipoCobranca" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
+          <option value="por_segundo">Por Segundo</option>
+          <option value="por_minuto">Por Minuto</option>
+          <option value="por_hora">Por Hora</option>
+        </select>
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Valor Unidade (R$):</label>
+        <input type="number" id="valorUnidade" step="0.01" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Valor Mínimo (R$):</label>
+        <input type="number" id="valorMinimo" step="0.01" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
+      </div>
+      <div>
+        <label style="display:block; margin-bottom:5px; font-weight:600;">Valor Máximo (R$):</label>
+        <input type="number" id="valorMaximo" step="0.01" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:5px;">
+      </div>
+    </div>
+    <button class="btn desbloquear" onclick="salvarPrecosQR()">Salvar Configuração</button>
+    <div id="msgConfig" style="margin-top:10px; padding:10px; border-radius:5px; display:none;"></div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card card-small">
+      <h2>Entradas QR (Hoje)</h2>
+      <div class="stat-number"><span id="entradasHoje">0</span></div>
+    </div>
+    <div class="card card-small">
+      <h2>Saídas QR (Hoje)</h2>
+      <div class="stat-number"><span id="saidasHoje">0</span></div>
+    </div>
+    <div class="card card-small">
+      <h2>Faturamento QR (Hoje)</h2>
+      <div class="stat-number" style="color:#4caf50;"><span id="faturamentoHoje">R$ 0.00</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🚗 Veículos QR Ativos</h2>
+    <div id="listaVeiculosQR" style="max-height:300px; overflow-y:auto;">
+      <div style="padding:20px; text-align:center; color:#999;">Carregando...</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Histórico Completo QR</h2>
+    <div style="overflow-x:auto;">
+      <table style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f8f9fa;">
+            <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6;">QR Code</th>
+            <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6;">Entrada</th>
+            <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6;">Saída</th>
+            <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6;">Tempo</th>
+            <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6;">Valor</th>
+            <th style="padding:12px; text-align:left; border-bottom:2px solid #dee2e6;">Status</th>
+          </tr>
+        </thead>
+        <tbody id="historicoQRTabela">
+          <tr><td colspan="6" style="padding:20px; text-align:center; color:#999;">Carregando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 
 <script src="../scripts/admin.js"></script>

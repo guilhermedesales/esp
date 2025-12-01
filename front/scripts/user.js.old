@@ -1,0 +1,557 @@
+// ========================================
+// CONFIGURAÇÕES
+// ========================================
+const API_URL = 'http://localhost:3000';
+
+// MQTT
+const client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
+
+// Variáveis globais MQTT
+let vagas = {
+  vaga1: { status: 'livre', numero: 1 },
+  vaga2: { status: 'livre', numero: 2 }
+};
+
+// Variáveis globais QR
+let veiculoAtual = null;
+let intervalAtualizacao = null;
+
+// ========================================
+// SISTEMA MQTT (VAGAS ESP32)
+// ========================================
+
+// Conexão MQTT
+client.on('connect', () => {
+  console.log('✅ Conectado ao MQTT');
+  
+  client.subscribe('estacionamento/vaga1/status');
+  client.subscribe('estacionamento/vaga2/status');
+  
+  atualizarStatusConexao(true);
+});
+
+client.on('error', (error) => {
+  console.error('❌ Erro MQTT:', error);
+  atualizarStatusConexao(false);
+});
+
+client.on('message', (topic, message) => {
+  const msg = message.toString();
+  
+  if (topic.includes('vaga1/status')) {
+    vagas.vaga1.status = msg;
+  } else if (topic.includes('vaga2/status')) {
+    vagas.vaga2.status = msg;
+  }
+  
+  atualizarVagas();
+  atualizarTempoMedio();
+});
+
+// Atualizar status de conexão
+function atualizarStatusConexao(conectado) {
+  const badge = document.getElementById('statusBadge');
+  if (!badge) return;
+  
+  if (conectado) {
+    badge.textContent = '🟢 Online';
+    badge.className = 'status-badge online';
+  } else {
+    badge.textContent = '🔴 Offline';
+    badge.className = 'status-badge offline';
+  }
+}
+
+// Atualizar vagas
+function atualizarVagas() {
+  const container = document.getElementById('vagasContainer');
+  if (!container) return;
+  
+  container.innerHTML = '';
+  
+  let livres = 0;
+  
+  Object.entries(vagas).forEach(([id, vaga]) => {
+    const vagaDiv = document.createElement('div');
+    vagaDiv.className = 'vaga';
+    
+    let statusClass = '';
+    let statusText = '';
+    
+    if (vaga.status === 'livre') {
+      statusClass = 'livre';
+      statusText = '🟢 Livre';
+      livres++;
+    } else if (vaga.status === 'ocupada') {
+      statusClass = 'ocupada';
+      statusText = '🔴 Ocupada';
+    } else if (vaga.status === 'bloqueada') {
+      statusClass = 'bloqueada';
+      statusText = '⛔ Bloqueada';
+    }
+    
+    vagaDiv.className += ` ${statusClass}`;
+    vagaDiv.innerHTML = `
+      <div class="vaga-numero">Vaga ${vaga.numero}</div>
+      <div class="vaga-status">${statusText}</div>
+    `;
+    
+    container.appendChild(vagaDiv);
+  });
+  
+  // Atualizar número de vagas livres
+  const totalNumber = document.getElementById('totalNumber');
+  if (totalNumber) {
+    totalNumber.textContent = livres;
+  }
+  
+  // Alerta lotado
+  const alertaLotado = document.getElementById('alertaLotado');
+  if (alertaLotado) {
+    alertaLotado.style.display = livres === 0 ? 'block' : 'none';
+  }
+  
+  // Atualizar última atualização
+  const ultimaAtualizacao = document.getElementById('ultimaAtualizacao');
+  if (ultimaAtualizacao) {
+    ultimaAtualizacao.textContent = `Última atualização: ${new Date().toLocaleTimeString()}`;
+  }
+}
+
+// Atualizar tempo médio (simulação)
+function atualizarTempoMedio() {
+  const tempoMedio = document.getElementById('tempoMedio');
+  if (!tempoMedio) return;
+  
+  let ocupadas = Object.values(vagas).filter(v => v.status === 'ocupada').length;
+  let minutos = ocupadas > 0 ? 15 + (ocupadas * 10) : 20;
+  
+  tempoMedio.textContent = `${minutos} min`;
+}
+
+// Toggle tema
+function toggleTema() {
+  document.body.classList.toggle('tema-escuro');
+  
+  const isDark = document.body.classList.contains('tema-escuro');
+  localStorage.setItem('tema', isDark ? 'escuro' : 'claro');
+}
+
+// Carregar tema salvo
+window.addEventListener('DOMContentLoaded', () => {
+  const temaSalvo = localStorage.getItem('tema');
+  if (temaSalvo === 'escuro') {
+    document.body.classList.add('tema-escuro');
+  }
+  
+  // Inicializar vagas
+  atualizarVagas();
+  atualizarTempoMedio();
+});
+
+// ========================================
+// SISTEMA ANTIGO (CONSULTA VEÍCULO)
+// ========================================
+
+// Consultar veículo
+async function consultar() {
+  const qrCode = document.getElementById('qrCodeInput').value.trim();
+  
+  if (!qrCode) {
+    mostrarMensagemConsulta('⚠️ Digite o código QR do veículo', 'warning');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/api/vehicle/${qrCode}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        mostrarMensagemConsulta('❌ Veículo não encontrado', 'error');
+      } else {
+        mostrarMensagemConsulta('❌ Erro ao consultar. Tente novamente.', 'error');
+      }
+      return;
+    }
+    
+    const data = await response.json();
+    veiculoAtual = data.veiculo;
+    
+    // Mostrar resultado
+    document.getElementById('consulta-section').style.display = 'none';
+    document.getElementById('resultado-section').style.display = 'block';
+    
+    exibirVeiculo(veiculoAtual);
+    
+    // Atualizar a cada 5 segundos se veículo estiver ativo
+    if (veiculoAtual.status === 'ativo') {
+      intervalAtualizacao = setInterval(atualizarVeiculo, 5000);
+    }
+    
+  } catch (error) {
+    console.error('Erro:', error);
+    mostrarMensagemConsulta('❌ Erro de conexão com o servidor', 'error');
+  }
+}
+
+// Exibir dados do veículo
+function exibirVeiculo(veiculo) {
+  document.getElementById('qrCodeResultado').textContent = veiculo.qr_code;
+  document.getElementById('tempoVeiculo').textContent = veiculo.tempo_formatado || '--';
+  document.getElementById('entradaVeiculo').textContent = new Date(veiculo.entrada).toLocaleString('pt-BR');
+  
+  // Valor atual ou calculado
+  const valor = veiculo.valor_atual || veiculo.valor_calculado || 0;
+  document.getElementById('valorVeiculo').textContent = `R$ ${parseFloat(valor).toFixed(2)}`;
+  
+  // Status
+  const statusBadge = {
+    'ativo': '🟢 No estacionamento',
+    'aguardando_pagamento': '💳 Aguardando pagamento',
+    'pago': '✅ Pagamento confirmado'
+  };
+  document.getElementById('statusVeiculo').textContent = statusBadge[veiculo.status] || veiculo.status;
+  
+  // Ações baseadas no status
+  const acoesDiv = document.getElementById('acoesVeiculo');
+  
+  if (veiculo.status === 'ativo') {
+    acoesDiv.innerHTML = `
+      <div style="background:#e8f5e9; padding:15px; border-radius:8px; text-align:center;">
+        <p style="margin:0; color:#2e7d32;">✅ Seu veículo está no estacionamento</p>
+        <p style="margin:5px 0 0 0; font-size:13px; color:#666;">O valor está sendo atualizado automaticamente</p>
+      </div>
+    `;
+  } else if (veiculo.status === 'aguardando_pagamento') {
+    acoesDiv.innerHTML = `
+      <div style="background:#fff3cd; padding:15px; border-radius:8px; margin-bottom:15px;">
+        <p style="margin:0; color:#856404;">⚠️ Pagamento pendente</p>
+        <p style="margin:5px 0 0 0; font-size:13px; color:#856404;">Por favor, realize o pagamento para liberar a saída</p>
+      </div>
+      <button onclick="mostrarPagamento()" class="btn-primary">💳 Pagar Agora</button>
+    `;
+  } else if (veiculo.status === 'pago') {
+    acoesDiv.innerHTML = `
+      <div style="background:#d4edda; padding:15px; border-radius:8px; text-align:center;">
+        <p style="margin:0; color:#155724; font-size:16px;"><strong>✅ Pagamento confirmado!</strong></p>
+        <p style="margin:5px 0 0 0; font-size:13px; color:#155724;">Você já pode retirar seu veículo</p>
+        <p style="margin:10px 0 0 0; font-size:12px; color:#666;">Pago em: ${veiculo.pago_em ? new Date(veiculo.pago_em).toLocaleString('pt-BR') : '--'}</p>
+      </div>
+    `;
+  }
+}
+
+// Atualizar dados do veículo (se ativo)
+async function atualizarVeiculo() {
+  if (!veiculoAtual || veiculoAtual.status !== 'ativo') {
+    clearInterval(intervalAtualizacao);
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/api/vehicle/${veiculoAtual.qr_code}`);
+    if (response.ok) {
+      const data = await response.json();
+      veiculoAtual = data.veiculo;
+      exibirVeiculo(veiculoAtual);
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar:', error);
+  }
+}
+
+// Mostrar modal de pagamento
+function mostrarPagamento() {
+  if (!veiculoAtual.qr_pagamento) {
+    alert('QR Code de pagamento não disponível');
+    return;
+  }
+  
+  document.getElementById('qrPagamentoImg').src = veiculoAtual.qr_pagamento;
+  document.getElementById('modalPagamento').style.display = 'flex';
+}
+
+// Fechar modal
+function fecharModal() {
+  document.getElementById('modalPagamento').style.display = 'none';
+}
+
+// Confirmar pagamento
+async function confirmarPagamento() {
+  if (!veiculoAtual) return;
+  
+  const valor = veiculoAtual.valor_calculado || veiculoAtual.valor_atual || 0;
+  
+  try {
+    const response = await fetch(`${API_URL}/api/payment/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        veiculo_id: veiculoAtual.id,
+        valor_pago: parseFloat(valor),
+        metodo: 'pix'
+      })
+    });
+    
+    if (response.ok) {
+      fecharModal();
+      
+      // Atualizar dados do veículo
+      const dataAtualizada = await fetch(`${API_URL}/api/vehicle/${veiculoAtual.qr_code}`);
+      if (dataAtualizada.ok) {
+        const data = await dataAtualizada.json();
+        veiculoAtual = data.veiculo;
+        exibirVeiculo(veiculoAtual);
+      }
+      
+      // Mostrar mensagem de sucesso
+      alert('✅ Pagamento confirmado com sucesso!\nVocê já pode retirar seu veículo.');
+    } else {
+      alert('❌ Erro ao confirmar pagamento. Tente novamente.');
+    }
+  } catch (error) {
+    console.error('Erro:', error);
+    alert('❌ Erro de conexão. Tente novamente.');
+  }
+}
+
+// Nova consulta
+function novaConsulta() {
+  clearInterval(intervalAtualizacao);
+  veiculoAtual = null;
+  
+  document.getElementById('consulta-section').style.display = 'block';
+  document.getElementById('resultado-section').style.display = 'none';
+  document.getElementById('qrCodeInput').value = '';
+  document.getElementById('msgConsulta').style.display = 'none';
+}
+
+// Mostrar mensagem de consulta
+function mostrarMensagemConsulta(texto, tipo) {
+  const msgDiv = document.getElementById('msgConsulta');
+  msgDiv.textContent = texto;
+  msgDiv.style.display = 'block';
+  
+  const cores = {
+    'success': { bg: '#d4edda', color: '#155724' },
+    'error': { bg: '#f8d7da', color: '#721c24' },
+    'warning': { bg: '#fff3cd', color: '#856404' }
+  };
+  
+  msgDiv.style.background = cores[tipo].bg;
+  msgDiv.style.color = cores[tipo].color;
+  
+  setTimeout(() => {
+    msgDiv.style.display = 'none';
+  }, 3000);
+}
+
+// Fechar modal ao clicar fora
+window.onclick = function(event) {
+  const modal = document.getElementById('modalPagamento');
+  if (event.target === modal) {
+    fecharModal();
+  }
+  
+  const modalQR = document.getElementById('modalPagamentoQR');
+  if (event.target === modalQR) {
+    fecharModalQR();
+  }
+}
+
+// ========================================
+// FUNÇÕES DO SISTEMA QR CODE
+// ========================================
+
+let veiculoQRAtual = null;
+let intervalAtualizacaoQR = null;
+
+// Consultar veículo QR
+async function consultarQR() {
+  const qrCode = document.getElementById('qrCodeInput').value.trim();
+  
+  if (!qrCode) {
+    mostrarMensagemConsultaQR('⚠️ Digite o código QR do veículo', 'warning');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/api/vehicle/${qrCode}`);
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        mostrarMensagemConsultaQR('❌ Veículo não encontrado', 'error');
+      } else {
+        mostrarMensagemConsultaQR('❌ Erro ao consultar. Tente novamente.', 'error');
+      }
+      return;
+    }
+    
+    const data = await response.json();
+    veiculoQRAtual = data.veiculo;
+    
+    // Mostrar resultado
+    document.getElementById('consulta-qr-section').style.display = 'none';
+    document.getElementById('resultado-qr-section').style.display = 'block';
+    
+    exibirVeiculoQR(veiculoQRAtual);
+    
+    // Atualizar a cada 5 segundos se veículo estiver ativo
+    if (veiculoQRAtual.status === 'ativo') {
+      intervalAtualizacaoQR = setInterval(atualizarVeiculoQR, 5000);
+    }
+    
+  } catch (error) {
+    console.error('Erro QR:', error);
+    mostrarMensagemConsultaQR('❌ Erro de conexão com o servidor', 'error');
+  }
+}
+
+// Exibir dados do veículo QR
+function exibirVeiculoQR(veiculo) {
+  document.getElementById('qrCodeResultado').textContent = veiculo.qr_code;
+  document.getElementById('tempoVeiculoQR').textContent = veiculo.tempo_formatado || '--';
+  document.getElementById('entradaVeiculoQR').textContent = new Date(veiculo.entrada).toLocaleString('pt-BR');
+  
+  const valor = veiculo.valor_atual || veiculo.valor_calculado || 0;
+  document.getElementById('valorVeiculoQR').textContent = `R$ ${parseFloat(valor).toFixed(2)}`;
+  
+  const statusBadge = {
+    'ativo': '🟢 No estacionamento',
+    'aguardando_pagamento': '💳 Aguardando pagamento',
+    'pago': '✅ Pagamento confirmado'
+  };
+  document.getElementById('statusVeiculoQR').textContent = statusBadge[veiculo.status] || veiculo.status;
+  
+  const acoesDiv = document.getElementById('acoesVeiculoQR');
+  
+  if (veiculo.status === 'ativo') {
+    acoesDiv.innerHTML = `
+      <div style="background:#e8f5e9; padding:12px; border-radius:8px; text-align:center; font-size:13px;">
+        <p style="margin:0; color:#2e7d32;">✅ Seu veículo está no estacionamento</p>
+        <p style="margin:5px 0 0 0; font-size:12px; color:#666;">Valor atualizado automaticamente</p>
+      </div>
+    `;
+  } else if (veiculo.status === 'aguardando_pagamento') {
+    acoesDiv.innerHTML = `
+      <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:12px; font-size:13px;">
+        <p style="margin:0; color:#856404;">⚠️ Pagamento pendente</p>
+        <p style="margin:5px 0 0 0; font-size:12px; color:#856404;">Realize o pagamento para liberar a saída</p>
+      </div>
+      <button onclick="mostrarPagamentoQR()" style="width:100%; padding:12px; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:8px; font-size:14px; font-weight:bold; cursor:pointer;">
+        💳 Pagar Agora
+      </button>
+    `;
+  } else if (veiculo.status === 'pago') {
+    acoesDiv.innerHTML = `
+      <div style="background:#d4edda; padding:12px; border-radius:8px; text-align:center; font-size:13px;">
+        <p style="margin:0; color:#155724; font-weight:bold;">✅ Pagamento confirmado!</p>
+        <p style="margin:5px 0 0 0; font-size:12px; color:#155724;">Você já pode retirar seu veículo</p>
+        ${veiculo.pago_em ? `<p style="margin:8px 0 0 0; font-size:11px; color:#666;">Pago em: ${new Date(veiculo.pago_em).toLocaleString('pt-BR')}</p>` : ''}
+      </div>
+    `;
+  }
+}
+
+// Atualizar dados do veículo QR
+async function atualizarVeiculoQR() {
+  if (!veiculoQRAtual || veiculoQRAtual.status !== 'ativo') {
+    clearInterval(intervalAtualizacaoQR);
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_URL}/api/vehicle/${veiculoQRAtual.qr_code}`);
+    if (response.ok) {
+      const data = await response.json();
+      veiculoQRAtual = data.veiculo;
+      exibirVeiculoQR(veiculoQRAtual);
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar QR:', error);
+  }
+}
+
+// Mostrar modal de pagamento QR
+function mostrarPagamentoQR() {
+  if (!veiculoQRAtual.qr_pagamento) {
+    alert('QR Code de pagamento não disponível');
+    return;
+  }
+  
+  document.getElementById('qrPagamentoImg').src = veiculoQRAtual.qr_pagamento;
+  document.getElementById('modalPagamentoQR').style.display = 'flex';
+}
+
+// Fechar modal QR
+function fecharModalQR() {
+  document.getElementById('modalPagamentoQR').style.display = 'none';
+}
+
+// Confirmar pagamento QR
+async function confirmarPagamentoQR() {
+  if (!veiculoQRAtual) return;
+  
+  const valor = veiculoQRAtual.valor_calculado || veiculoQRAtual.valor_atual || 0;
+  
+  try {
+    const response = await fetch(`${API_URL}/api/payment/confirm`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        veiculo_id: veiculoQRAtual.id,
+        valor_pago: parseFloat(valor),
+        metodo: 'pix'
+      })
+    });
+    
+    if (response.ok) {
+      fecharModalQR();
+      
+      const dataAtualizada = await fetch(`${API_URL}/api/vehicle/${veiculoQRAtual.qr_code}`);
+      if (dataAtualizada.ok) {
+        const data = await dataAtualizada.json();
+        veiculoQRAtual = data.veiculo;
+        exibirVeiculoQR(veiculoQRAtual);
+      }
+      
+      alert('✅ Pagamento confirmado com sucesso!\nVocê já pode retirar seu veículo.');
+    } else {
+      alert('❌ Erro ao confirmar pagamento. Tente novamente.');
+    }
+  } catch (error) {
+    console.error('Erro QR:', error);
+    alert('❌ Erro de conexão. Tente novamente.');
+  }
+}
+
+// Nova consulta QR
+function novaConsultaQR() {
+  clearInterval(intervalAtualizacaoQR);
+  veiculoQRAtual = null;
+  
+  document.getElementById('consulta-qr-section').style.display = 'block';
+  document.getElementById('resultado-qr-section').style.display = 'none';
+  document.getElementById('qrCodeInput').value = '';
+  document.getElementById('msgConsultaQR').style.display = 'none';
+}
+
+// Mostrar mensagem de consulta QR
+function mostrarMensagemConsultaQR(texto, tipo) {
+  const msgDiv = document.getElementById('msgConsultaQR');
+  msgDiv.textContent = texto;
+  msgDiv.style.display = 'block';
+  
+  const cores = {
+    'success': { bg: '#d4edda', color: '#155724' },
+    'error': { bg: '#f8d7da', color: '#721c24' },
+    'warning': { bg: '#fff3cd', color: '#856404' }
+  };
+  
+  msgDiv.style.background = cores[tipo].bg;
+  msgDiv.style.color = cores[tipo].color;
+  
+  setTimeout(() => {
+    msgDiv.style.display = 'none';
+  }, 3000);
+}

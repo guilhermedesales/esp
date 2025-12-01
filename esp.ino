@@ -6,8 +6,8 @@
 #include <WiFiClientSecure.h>
 
 // --- CONFIG WIFI / MQTT ---
-const char* ssid = "";
-const char* password = "";
+const char* ssid = "RICARDO2G";
+const char* password = "rico5910bc";
 
 const char* mqttServer = "3c16c837ea4f4ac0966899396b41ab08.s1.eu.hivemq.cloud";
 const int mqttPort = 8883;  // TLS
@@ -67,6 +67,7 @@ void reconnect() {
       client.subscribe("estacionamento/vaga1/bloqueio");
       client.subscribe("estacionamento/vaga2/bloqueio");
       client.subscribe("estacionamento/lcd");
+      client.subscribe("estacionamento/qr/cancela");  // QR Code detector
       mqttConectado = true;
     } else {
       Serial.print(".");
@@ -82,6 +83,19 @@ void callback(char* topic, byte* payload, unsigned int length){
   if(String(topic)=="estacionamento/vaga1/bloqueio") bloqueado1 = (msg=="true");
   if(String(topic)=="estacionamento/vaga2/bloqueio") bloqueado2 = (msg=="true");
   if(String(topic)=="estacionamento/lcd") lcdLinha1 = msg;
+  
+  // QR Code: abrir cancela quando Python detecta QR
+  if(String(topic)=="estacionamento/qr/cancela" && msg=="abrir"){
+    if(estadoCancela == 0){  // Só abre se não estiver já aberta
+      servo.write(90);
+      estadoCancela = 1;
+      tempoAbertura = millis();
+      contadorAcessos++;
+      Serial.println("🚪 Cancela aberta via QR Code!");
+      client.publish("estacionamento/cancela","aberta");
+      client.publish("estacionamento/acessos", String(contadorAcessos).c_str());
+    }
+  }
 }
 
 String getLCDDisplayString(String texto, int &scrollIndex, unsigned long &ultimoScroll) {
